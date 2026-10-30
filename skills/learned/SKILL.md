@@ -136,7 +136,7 @@ Nothing else.
 
 ## Consolidation mode (`/learned consolidate`)
 
-Memory hygiene is owned by the dedicated `anthropic-skills:consolidate-memory` skill . A SessionStart hook, where one is set up, may nudge toward it using a `.last-consolidated` marker. Don't reimplement it here.
+Memory hygiene is owned by the dedicated `anthropic-skills:consolidate-memory` skill. A SessionStart hook, where one is set up, may nudge toward it using a `.last-consolidated` marker. Don't reimplement it here.
 
 When user types `/learned consolidate`:
 1. Resolve the memory directory (Step 3)

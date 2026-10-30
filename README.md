@@ -220,7 +220,7 @@ Optional plugins. The skills skip the step when the plugin is missing:
 claude plugin marketplace update zahidakhyar
 ```
 
-Installed copies only pick up a change when `version` in `.claude-plugin/plugin.json` goes up, so every change to `main` that should reach the team comes with a version bump.
+Installed copies are cached per version (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`), so bump `version` in `.claude-plugin/plugin.json` with every change to `main` that should reach the team.
 
 ## Troubleshooting
 
@@ -228,7 +228,7 @@ Installed copies only pick up a change when `version` in `.claude-plugin/plugin.
 |---|---|
 | `/zahidakhyar-skills:ship` is not recognised | Start a new session after installing; check `claude plugin details zahidakhyar-skills` |
 | Every skill shows up twice | The skills are loaded from both the plugin and `~/.claude/skills/`. Keep only one (see [Maintainer setup](#maintainer-setup)) |
-| A change on `main` doesn't arrive | `version` wasn't bumped, or the marketplace wasn't updated |
+| A change on `main` doesn't arrive | Check that `version` was bumped, then run `claude plugin marketplace update zahidakhyar` |
 | `gh: command not found` / `HTTP 401` | Install `gh` and run `gh auth login` |
 | `orchestrate` can't start sessions | It needs the Claude desktop app's Code tab |
 

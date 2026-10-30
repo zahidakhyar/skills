@@ -5,7 +5,7 @@ description: Use when reviewing a teammate's pull request for the first time —
 
 # PR Review
 
-First review of someone else's PR. It runs `code-review` and, when the diff calls for them, `security-review` and an `impeccable` UI audit, filters every finding through the review protocol ([`references/review-protocol.md`](references/review-protocol.md), overridden by a repo `REVIEW.md`), and posts the result as one review: one notification for the author. Every later round is `/recheck`, which finds this review through the `reviewed:` marker it writes.
+First review of someone else's PR. It runs `code-review` and, when the diff calls for them, `security-review` and an `impeccable` UI audit (when that plugin is installed), filters every finding through the review protocol (`${CLAUDE_SKILL_DIR}/references/review-protocol.md`, overridden by a repo `REVIEW.md`), and posts the result as one review: one notification for the author. Every later round is `/recheck`, which finds this review through the `reviewed:` marker it writes.
 
 Argument: `/pr-review <PR number|URL> [--comment]`. `--comment` posts the review as soon as step 7 has built it, without showing the draft first. Missing PR → `gh pr list --search "review-requested:@me" --json number,title,author` and ask which one. Run inside the repo checkout; needs `gh` and `jq`.
 
@@ -66,12 +66,12 @@ Every finding from step 5 goes through this before it can be posted:
 - An old bug the PR adds no path to (the lines are outside the diff, `git blame` shows them older than the PR) → **Pre-existing**.
 - New non-trivial logic with no test in the diff → Medium on a High-tier PR, Low otherwise. A green CI does not cover logic no test exercises.
 - A failure that hits every request, every tenant or a whole feature during the deploy window, or that makes rollback fail → **High**. Severity is set by who it hits and whether it can be undone, not by how long it lasts: "only until the new revision is ready" is still an outage.
-- Severity per `references/review-protocol.md`; the repo's `REVIEW.md` overrides it. Style-only → Nit, at most 5, keep the ones that matter most.
+- Severity per `${CLAUDE_SKILL_DIR}/references/review-protocol.md`; the repo's `REVIEW.md` overrides it. Style-only → Nit, at most 5, keep the ones that matter most.
 - PR description claims checked against the diff. A claim the diff does not support → finding in the body: Medium when it claims a test or verification that did not happen, Low otherwise.
 
 ## 7. Draft, confirm, post
 
-Write `review.json` to the scratchpad, in the shape `references/review-protocol.md` defines:
+Write `review.json` to the scratchpad, in the shape `${CLAUDE_SKILL_DIR}/references/review-protocol.md` defines:
 
 ```json
 {"event": "REQUEST_CHANGES", "commit_id": "<head>", "body": "...",
