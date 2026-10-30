@@ -21,7 +21,7 @@ Read back through the full current conversation. Tag each finding:
 - Already covered by MEMORY.md or global rules (CLAUDE.md, LANGUAGE.md, KARPATHY.md)
 - Ephemeral task state
 
-**Asked to remember something on that list** ("ingat struktur module ini", "remember this file layout")? Don't drop it silently. Ask what was non-obvious about it — the gotcha, the decision behind it, why it surprised — and save that instead.
+**Asked to remember something on that list** ("remember this module structure", "remember this file layout")? Don't drop it silently. Ask what was non-obvious about it — the gotcha, the decision behind it, why it surprised — and save that instead.
 
 ---
 
@@ -99,7 +99,7 @@ Learned:
 — Skipped: [reason]
 ```
 
-**Card form.** When the user explicitly typed `/learn` and the `show_widget` tool (visualize MCP) is available, render those same lines as one card instead: call `read_me` once, silently (module `mockup`; skip if already called this session), then `show_widget` with the template below — one row per memory, drop the rows you don't need. The card is the whole report; at most one sentence of prose outside the tool call. Auto-invocations mid-task (after a correction, a "catat ini") keep the text form: the reply has to continue, and `read_me` costs several thousand tokens.
+**Card form.** When the user explicitly typed `/learn` and the `show_widget` tool (visualize MCP) is available, render those same lines as one card instead: call `read_me` once, silently (module `mockup`; skip if already called this session), then `show_widget` with the template below — one row per memory, drop the rows you don't need. The card is the whole report; at most one sentence of prose outside the tool call. Auto-invocations mid-task (after a correction, a "remember this") keep the text form: the reply has to continue, and `read_me` costs several thousand tokens.
 
 ```html
 <h2 class="sr-only">Memory changes this session: [N] new, [N] updated, [N] deleted, [N] skipped.</h2>

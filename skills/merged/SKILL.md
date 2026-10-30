@@ -29,7 +29,7 @@ A token starting with `--` is a flag; the one remaining token is the PR ref (num
 
 3. **Base** — `git status --porcelain` in the current checkout must be empty; changes → **ask** before switching branches. Then `git checkout <base>`, `git pull --ff-only`, record `git rev-parse --short <base>` for the `base@sha` column. Fast-forward fails → report, never reset/force.
 
-4. **Local branch** — if `git branch --list <head>` exists → `git branch -D <head>` (`-d` refuses squash-merged branches; `-D` is safe because step 1 already confirmed MERGED). Missing → column `bersih`, no command. Also leftover review branches: `git branch --list 'pr-*'`, take the number from `pr-<N>[-suffix]`, `gh pr view <N> --json state`; `MERGED` → `git branch -D`, otherwise leave it. The count goes in the `branch lokal` column.
+4. **Local branch** — if `git branch --list <head>` exists → `git branch -D <head>` (`-d` refuses squash-merged branches; `-D` is safe because step 1 already confirmed MERGED). Missing → column `clean`, no command. Also leftover review branches: `git branch --list 'pr-*'`, take the number from `pr-<N>[-suffix]`, `gh pr view <N> --json state`; `MERGED` → `git branch -D`, otherwise leave it. The count goes in the `local branch` column.
 
 5. **Remote** — `git fetch --prune`. If `git ls-remote --heads origin <head>` still exists → `git push origin --delete <head>`.
 
@@ -39,15 +39,15 @@ A token starting with `--` is a flag; the one remaining token is the PR ref (num
      `\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\s+([\w.-]+/[\w.-]+)?#(\d+)` — `#N` = this repo, `owner/repo#N` = another repo (use `-R owner/repo` in the `gh issue` command).
 
    No refs → column `-`. For each ref: `gh issue view <N> [-R owner/repo] --json state,url`.
-   - `CLOSED` → `bersih`.
-   - `OPEN` without `--close-issues` → column `open`, and below the table: `#N masih open — jalankan ulang dengan --close-issues`.
-   - `OPEN` with `--close-issues` → `gh issue close <N> [-R owner/repo] --comment "Merged in <PR url>"` → column `ditutup`. The comment is required: GitHub's auto-close links the PR, and a manual close without a comment loses that trail. The board moves the issue to Done on its own through the built-in "Item closed" workflow; do not touch the board.
+   - `CLOSED` → `clean`.
+   - `OPEN` without `--close-issues` → column `open`, and below the table: `#N still open — rerun with --close-issues`.
+   - `OPEN` with `--close-issues` → `gh issue close <N> [-R owner/repo] --comment "Merged in <PR url>"` → column `closed`. The comment is required: GitHub's auto-close links the PR, and a manual close without a comment loses that trail. The board moves the issue to Done on its own through the built-in "Item closed" workflow; do not touch the board.
 
-7. **Back-merge** — if base is `main` and a `dev` branch exists: `git merge-tree --write-tree origin/dev origin/main`, then compare its first line with `git rev-parse origin/dev^{tree}`. Equal → dev is not behind (merge or squash commits from a release do not count). Different → report "main punya perubahan yang belum ada di dev" plus `git log --no-merges --oneline origin/dev..origin/main` as information (it may include release squash commits); do not merge yourself. The user decides.
+7. **Back-merge** — if base is `main` and a `dev` branch exists: `git merge-tree --write-tree origin/dev origin/main`, then compare its first line with `git rev-parse origin/dev^{tree}`. Equal → dev is not behind (merge or squash commits from a release do not count). Different → report "main has changes that dev does not have yet" plus `git log --no-merges --oneline origin/dev..origin/main` as information (it may include release squash commits); do not merge yourself. The user decides.
 
 8. **Next** — read-only, runs even with `--dry-run`. Collect candidates in the repo steps 1–7 worked on:
    - **Plan** — `grep -c -- '- \[ \]' docs/superpowers/plans/*.md` (missing dir → skip). A plan whose title or filename matches this PR (head branch, PR title) and still has unchecked tasks → candidate "skipped step": list the unchecked task titles. Other plans with unchecked tasks → candidate "next plan", oldest file first. A spec in `docs/superpowers/specs/` whose phases have no plan file yet → candidate "plan not written".
-   - **Session** — what this conversation left open and no other source records: work the user deferred ("nanti", "habis ini", "later", "after merge", "setelah ini"); follow-ups you named in replies or `wrap_up` recaps, and items reported as not done or not verified; `start_session` cards proposed but not started. When `/merged` runs in a session other than the one that built the PR, search that session instead: `search_session_transcripts` with the PR number and head branch (desktop app only; tool missing → skip this source and say so in one line). Drop any item a later message or this PR already settled.
+   - **Session** — what this conversation left open and no other source records: work the user deferred ("later", "after this", "after merge", in any language); follow-ups you named in replies or `wrap_up` recaps, and items reported as not done or not verified; `start_session` cards proposed but not started. When `/merged` runs in a session other than the one that built the PR, search that session instead: `search_session_transcripts` with the PR number and head branch (desktop app only; tool missing → skip this source and say so in one line). Drop any item a later message or this PR already settled.
    - **Follow-up** — `gh api repos/{owner}/{repo}/pulls/<N>/comments --jq '.[] | select(.body | test("^\\*\\*(Low|Pre-existing)\\*\\*")) | {path, line, body}'`. Keep only items no open issue references yet (`gh issue list --search "<path>" --state open`).
    - **Release** — base is `dev` → `git rev-list --count origin/main..origin/dev`; non-zero → candidate "`/release`" with the count.
    - **Issue** — `gh issue list --assignee @me --state open --limit 5 --json number,title,labels`, excluding issues step 6 just closed.
@@ -59,18 +59,18 @@ A token starting with `--` is a flag; the one remaining token is the PR ref (num
 
 One table, one row per repo that steps 1–7 worked on, no narration:
 
-| repo | base@sha | branch lokal | remote | worktree | issue | back-merge |
+| repo | base@sha | local branch | remote | worktree | issue | back-merge |
 
-Cell values: `dihapus` / `dilepas` / `ditutup` = done, `bersih` = already gone (or already closed) before cleanup, `open` = issue still open and the flag was not given, `-` = not relevant to this PR (e.g. no issue ref, base is not `main`). Anything needing a decision (dirty checkout, dirty worktree, issue still open, dev behind) is written below the table, one line per item.
+Cell values: `deleted` / `removed` / `closed` = done, `clean` = already gone (or already closed) before cleanup, `open` = issue still open and the flag was not given, `-` = not relevant to this PR (e.g. no issue ref, base is not `main`). Anything needing a decision (dirty checkout, dirty worktree, issue still open, dev behind) is written below the table, one line per item.
 
 Last, the result of step 8, always present:
 
 ```
 Next: <recommendation> — <reason, under 12 words>
-Lainnya: <at most 2 other candidates, one line each>
+Others: <at most 2 other candidates, one line each>
 ```
 
-No candidates → only `Next: tidak ada kerjaan tersisa yang terlacak.` When the host has a next-step box (`wrap_up`), always call it with `ask` = the recommendation, `actions[0]` = do it, and `actions[1]` = the top `Lainnya` item; a recap-only `wrap_up` is wrong whenever a candidate exists.
+No candidates → only `Next: no tracked work left.` When the host has a next-step box (`wrap_up`), always call it with `ask` = the recommendation, `actions[0]` = do it, and `actions[1]` = the top `Others` item; a recap-only `wrap_up` is wrong whenever a candidate exists.
 
 ## Never
 

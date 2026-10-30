@@ -127,9 +127,9 @@ The output of a recheck is the review itself, not a comment about the review. Ea
 
 No summary comment and no separate `gh pr review` call: the review body carries the verdict, and a second message with the same content is what gets the whole review skimmed. GitHub blocks approve/request-changes on your own PR; there `event` is `COMMENT` and the verdict is the body's first line, marker included.
 
-Review body for an Indonesian PR where everything is fixed:
+Review body for a PR where everything is fixed:
 
-> 10 finding beres, verified di `1cdc1bd` (350 pass, tsc 97 = dev). 3 nit baru inline, non-blocking. `noUncheckedIndexedAccess`: iya, issue terpisah.
+> All 10 findings fixed, verified at `1cdc1bd` (350 pass, tsc 97 = dev). 3 new nits inline, non-blocking. `noUncheckedIndexedAccess`: yes, separate issue.
 > <!-- reviewed: 1cdc1bd53ef402c89c57d0c31c1966af2ad68fdd -->
 
 What stays out. Each of these is what once made a real recheck three times longer than its content:

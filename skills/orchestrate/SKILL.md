@@ -19,7 +19,7 @@ The model is set **per child**, because in cross-repo work usually only one side
 
 ### 1. Collect the plans
 
-Arguments = plan paths, or unambiguous references from context ("plan 1 dan 2" = plan files already named in the conversation). No argument → `ls -t docs/superpowers/plans/*.md | head -1` in the current repo. Any path ambiguous or missing → stop and ask.
+Arguments = plan paths, or unambiguous references from context ("plan 1 and 2" = plan files already named in the conversation). No argument → `ls -t docs/superpowers/plans/*.md | head -1` in the current repo. Any path ambiguous or missing → stop and ask.
 
 For each plan, read sparingly. Do not `Read` whole plans, do not explore the codebases:
 - `sed -n '1,25p' <plan>` → Goal.
@@ -56,7 +56,7 @@ First `mcp__ccd_session_mgmt__get_session("self")` → the coordinator's `local_
 
 **Pick each child's model.**
 - `--opus` → every child on Opus, no question.
-- Otherwise, any UI-heavy plan → ask once, before spawning, in the same message as the contract confirmation when step 2 drafted one: "Plan <repo> berat di UI (<count> file). Child <repo> pakai Opus?" Yes → that child on Opus. The other children stay on Sonnet.
+- Otherwise, any UI-heavy plan → ask once, before spawning, in the same message as the contract confirmation when step 2 drafted one: "The <repo> plan is UI-heavy (<count> files). Run the <repo> child on Opus?" Yes → that child on Opus. The other children stay on Sonnet.
 - No UI-heavy plan → all Sonnet, no question.
 
 Any child on Opus → the coordinator must be on Opus too: the app caps a child at its parent's model, so the choice would silently do nothing. Not on Opus → stop and ask the user to switch this session to Opus in the model menu first.
@@ -135,7 +135,7 @@ Branches stay unmerged and unpushed until the user says to ship. Then `SendMessa
 
 ### 8. Cleanup after merge
 
-Runs when the user says the PRs are merged ("sudah merge", "PR-nya udah masuk"). Check each PR really is merged (`gh pr view <PR> -R <owner/repo> --json state`) before touching anything. One still open → clean up only the merged ones and say which is left.
+Runs when the user says the PRs are merged ("merged", "the PRs are in", in any language). Check each PR really is merged (`gh pr view <PR> -R <owner/repo> --json state`) before touching anything. One still open → clean up only the merged ones and say which is left.
 
 1. **Archive the children first.** Ask the user once for all of them ("archive N session builder?"), then `mcp__ccd_session_mgmt__archive_session` per child with reason `PR <owner/repo>#<n> merged`. Archiving stops the child and removes its worktree, which `/merged` would otherwise refuse to remove while the child still has it checked out.
 2. **Run `/merged <PR>` for each repo.** The coordinator usually sits outside these repos, so run every git command of that skill as `git -C <repo root>` and every gh command with `-R <owner/repo>`. It removes the local branch, syncs the base, and checks linked issues.

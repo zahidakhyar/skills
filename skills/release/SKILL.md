@@ -38,7 +38,7 @@ Arguments: `/release <major|minor|patch>`. No argument → ask for the bump type
    ```bash
    rgit() { rtk proxy git "$@"; }   # a function, not a variable (zsh does not word-split); not `g`, that is an oh-my-zsh alias
    PREV=$(rgit describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo origin/<target>)  # no tag yet = first release
-   rgit log "$PREV"..HEAD~1 --no-merges --format='%s'                    # commits, for Perubahan
+   rgit log "$PREV"..HEAD~1 --no-merges --format='%s'                    # commits, for Changes
    rgit log "$PREV"..HEAD~1 --no-merges --format='%B' | grep -n 'BREAKING CHANGE'  # + `type!:` subjects
    # Env: compare KEYS, not diff text (diff text mixes comment edits and dev defaults)
    ENV=$(ls .env.example .env.sample .env.template 2>/dev/null | head -1)
@@ -52,40 +52,40 @@ Arguments: `/release <major|minor|patch>`. No argument → ask for the bump type
 
    Reading the results:
    - **New env**: its description = the comment directly above that key in the env example file, condensed to one sentence.
-   - **Target service for env**: if the project's CLAUDE.md has a deployment table, list every service deployed from this repo (e.g. `api` and `worker`). No table → write "di environment production".
+   - **Target service for env**: if the project's CLAUDE.md has a deployment table, list every service deployed from this repo (e.g. `api` and `worker`). No table → write "in the production environment".
    - **Migration `M`**: read its diff. It goes on the checklist only when the query itself changed. Formatting-only changes (prettier, quotes, indentation) are ignored.
    - **Breaking**: combine three sources. First, `type!:` subjects and `BREAKING CHANGE`. Second, if the repo commits an OpenAPI document, its diff: a removed or renamed path, field, or enum value is breaking for clients. Third, CHANGELOG entries that mention a removed field/endpoint or a changed format.
 
-   **6b. Body template** (Bahasa Indonesia, natural English mixing). `Ringkasan` and `Perubahan` are always present. Empty `Perubahan` subsections and any `Sebelum deploy` item with no content are dropped; when every item is empty, the whole `Sebelum deploy` section goes.
+   **6b. Body template.** Write the body in the language the user's instructions set for PR descriptions (default English), translating the headings with it. `Summary` and `Changes` are always present. Empty `Changes` subsections and any `Before deploy` item with no content are dropped; when every item is empty, the whole `Before deploy` section goes.
 
    ```markdown
-   ## Ringkasan
-   <1–3 kalimat: apa yang user dapat dari rilis ini. Sumber utama: entry CHANGELOG
-   untuk service ini (heading versi ini, atau `Unreleased`) kalau project punya
-   CHANGELOG; kalau tidak, simpulkan dari commit feat/fix.>
+   ## Summary
+   <1–3 sentences: what users get from this release. Main source: the CHANGELOG
+   entry for this service (this version's heading, or `Unreleased`) if the project
+   has a CHANGELOG; otherwise, infer it from the feat/fix commits.>
 
-   ## Perubahan
-   ### Fitur
-   - <subject tanpa prefix type, huruf awal kapital> (#N)
-   ### Perbaikan
+   ## Changes
+   ### Features
+   - <subject without the type prefix, first letter capitalized> (#N)
+   ### Fixes
    - ...
-   ### Performa
+   ### Performance
    - ...
-   <details><summary>Lainnya (<jumlah> commit: <type yang benar-benar ada>)</summary>
+   <details><summary>Other (<count> commits: <types actually present>)</summary>
 
    - ...
    </details>
 
-   ## Sebelum deploy
-   - [ ] Breaking: <apa yang berubah dan siapa yang terdampak>
-   - [ ] Set env baru di <service>:
-     - `KEY`: <keterangan>
-   - [ ] Hapus env yang sudah tidak dipakai dari <service>: `KEY`
-   - [ ] Env build-time berubah (`NEXT_PUBLIC_*`, `VITE_*`): perlu rebuild, restart saja tidak cukup
-   - [ ] Migration baru (<jumlah>): `<nama file>`, ... (lebih dari 5: tulis jumlahnya saja, plus yang drop kolom/tabel disebut namanya)
-   - [ ] Migration lama diubah: `<nama file>`. Database yang sudah menjalankannya tidak ikut berubah, cek manual
+   ## Before deploy
+   - [ ] Breaking: <what changed and who is affected>
+   - [ ] Set new env on <service>:
+     - `KEY`: <description>
+   - [ ] Remove env no longer used from <service>: `KEY`
+   - [ ] Build-time env changed (`NEXT_PUBLIC_*`, `VITE_*`): needs a rebuild, a restart is not enough
+   - [ ] New migrations (<count>): `<file name>`, ... (more than 5: write only the count, plus name any that drop a column/table)
+   - [ ] Existing migration edited: `<file name>`. Databases that already ran it do not change, check manually
 
-   Diff lengkap: https://github.com/<owner>/<repo>/compare/<PREV>...v<versi baru>
+   Full diff: https://github.com/<owner>/<repo>/compare/<PREV>...v<new version>
    ```
 
    Content rules:
@@ -93,9 +93,9 @@ Arguments: `/release <major|minor|patch>`. No argument → ask for the bump type
    - A commented-out key (`# S3_ENDPOINT ...`) is not a new env.
    - `<PREV>` in the compare link: the tag name, or the target branch name (`main`) on a first release.
    - `(#N)` references in squash-commit subjects are kept as they are.
-   - The Ringkasan and Breaking prose goes through `humanizer:humanizer` (embedded mode) before the PR is created.
+   - The Summary and Breaking prose goes through `humanizer:humanizer` (embedded mode) before the PR is created.
 
-7. **Output** — the new version + the PR URL, plus a 1-line summary (branch → target). If the body has a `Sebelum deploy` section, state its item count so the user knows there is prep to do. Remind them to merge with "Create a merge commit", not squash: squash leaves the tag on a commit outside the target branch's history. Then offer the post-merge step (8).
+7. **Output** — the new version + the PR URL, plus a 1-line summary (branch → target). If the body has a `Before deploy` section, state its item count so the user knows there is prep to do. Remind them to merge with "Create a merge commit", not squash: squash leaves the tag on a commit outside the target branch's history. Then offer the post-merge step (8).
 
 8. **After the user says the PR is merged** — create the GitHub release with the CHANGELOG section as its notes (no CHANGELOG → `--generate-notes`):
    ```bash
@@ -114,8 +114,8 @@ Arguments: `/release <major|minor|patch>`. No argument → ask for the bump type
 | Dirty working tree | Stop, ask to commit/stash first |
 | Release PR already open | Push only, show the existing PR |
 | No bump type argument | Ask major/minor/patch, show the current version |
-| Env / migration / breaking changes | `Sebelum deploy` checklist in the body |
-| Nothing to prepare | Drop the `Sebelum deploy` section, never fill it with "tidak ada" |
+| Env / migration / breaking changes | `Before deploy` checklist in the body |
+| Nothing to prepare | Drop the `Before deploy` section, never fill it with "none" |
 
 ## Error handling
 

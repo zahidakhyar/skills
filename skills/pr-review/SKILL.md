@@ -81,7 +81,7 @@ Write `review.json` to the scratchpad, in the shape REVIEW.md defines:
 - `event`: any High/Medium → `REQUEST_CHANGES`, else `APPROVE`; own PR → `COMMENT`. Pre-existing never counts.
 - Inline comment: label first, then defect, failure scenario and fix, at most 4 lines. `line` must be a changed or context line of the diff on the RIGHT side: check each one against the hunks in `gh pr diff <PR>`. Anything else goes into the body in full.
 - Body: REVIEW.md's body shape, one clause for the gates, Pre-existing items with a suggestion to open an issue, and the last line `<!-- reviewed: <head> -->`.
-- Language: Bahasa Indonesia with English terms, or what the repo's `REVIEW.md` sets. Run the prose through `humanizer:humanizer` in embedded mode.
+- Language: what the repo's `REVIEW.md` sets, else the language of the PR description. Run the prose through `humanizer:humanizer` in embedded mode.
 
 Without `--comment`: show the user what the author will read (the verdict, the full body, and every inline comment with its `path:line`), then ask whether to post. Posting waits for a yes; requested edits → apply, show again.
 
