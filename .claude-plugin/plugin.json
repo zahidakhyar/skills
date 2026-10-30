@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "zahidakhyar-skills",
+  "description": "Zahid Akhyar's agent skills for Claude Code, shared with the team.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Zahid Akhyar",
+    "url": "https://github.com/zahidakhyar"
+  },
+  "homepage": "https://github.com/zahidakhyar/skills",
+  "repository": "https://github.com/zahidakhyar/skills",
+  "keywords": ["skills", "workflow", "git", "code-review", "productivity"]
+}

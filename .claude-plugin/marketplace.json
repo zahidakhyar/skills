@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "zahidakhyar",
+  "owner": {
+    "name": "Zahid Akhyar",
+    "url": "https://github.com/zahidakhyar"
+  },
+  "description": "Team skills for Claude Code.",
+  "plugins": [
+    {
+      "name": "zahidakhyar-skills",
+      "source": "./",
+      "description": "Zahid Akhyar's agent skills for Claude Code, shared with the team.",
+      "category": "productivity",
+      "keywords": ["skills", "workflow", "git", "code-review", "productivity"]
+    }
+  ]
+}

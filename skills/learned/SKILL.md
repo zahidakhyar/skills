@@ -1,6 +1,6 @@
 ---
 name: learned
-description: Extract and persist learnings, corrections, and patterns from the current session to memory. Invoke immediately after any user correction or rejected suggestion, after validation of a non-obvious choice, when the user says "remember this" / "catat ini", when a new preference, tool, workflow, or project decision surfaces, or at session end via /learn.
+description: Extract and persist learnings, corrections, and patterns from the current session to memory. Invoke immediately after any user correction or rejected suggestion, after validation of a non-obvious choice, when the user says "remember this" / "catat ini", when a new preference, tool, workflow, or project decision surfaces, or at session end via /learned.
 ---
 
 ## Step 1 — Scan the conversation
@@ -17,8 +17,8 @@ Read back through the full current conversation. Tag each finding:
 
 **Skip anything that is:**
 - Derivable from reading the code or git history
-- Code structure — module/entity maps, route lists, file layouts, tech-stack dumps. That belongs to graphify (`graphify-out/`) and each project's CLAUDE.md; saved here it only goes stale
-- Already covered by MEMORY.md or global rules (CLAUDE.md, LANGUAGE.md, KARPATHY.md)
+- Code structure — module/entity maps, route lists, file layouts, tech-stack dumps. That belongs to each project's CLAUDE.md; saved here it only goes stale
+- Already covered by MEMORY.md or global rules (CLAUDE.md and the files it imports)
 - Ephemeral task state
 
 **Asked to remember something on that list** ("remember this module structure", "remember this file layout")? Don't drop it silently. Ask what was non-obvious about it — the gotcha, the decision behind it, why it surprised — and save that instead.
@@ -99,7 +99,7 @@ Learned:
 — Skipped: [reason]
 ```
 
-**Card form.** When the user explicitly typed `/learn` and the `show_widget` tool (visualize MCP) is available, render those same lines as one card instead: call `read_me` once, silently (module `mockup`; skip if already called this session), then `show_widget` with the template below — one row per memory, drop the rows you don't need. The card is the whole report; at most one sentence of prose outside the tool call. Auto-invocations mid-task (after a correction, a "remember this") keep the text form: the reply has to continue, and `read_me` costs several thousand tokens.
+**Card form.** When the user explicitly typed `/learned` and the `show_widget` tool (visualize MCP) is available, render those same lines as one card instead: call `read_me` once, silently (module `mockup`; skip if already called this session), then `show_widget` with the template below — one row per memory, drop the rows you don't need. The card is the whole report; at most one sentence of prose outside the tool call. Auto-invocations mid-task (after a correction, a "remember this") keep the text form: the reply has to continue, and `read_me` costs several thousand tokens.
 
 ```html
 <h2 class="sr-only">Memory changes this session: [N] new, [N] updated, [N] deleted, [N] skipped.</h2>
@@ -134,13 +134,13 @@ Nothing else.
 
 ---
 
-## Consolidation mode (`/learn consolidate`)
+## Consolidation mode (`/learned consolidate`)
 
-Memory hygiene is owned by the dedicated `anthropic-skills:consolidate-memory` skill — the SessionStart hook (`~/.claude/hooks/memory-consolidation-check.mjs`) nudges toward it and tracks a `.last-consolidated` marker. Don't reimplement it here.
+Memory hygiene is owned by the dedicated `anthropic-skills:consolidate-memory` skill . A SessionStart hook, where one is set up, may nudge toward it using a `.last-consolidated` marker. Don't reimplement it here.
 
-When user types `/learn consolidate`:
+When user types `/learned consolidate`:
 1. Resolve the memory directory (Step 3)
-2. Invoke the `anthropic-skills:consolidate-memory` skill for this project
+2. Invoke the `anthropic-skills:consolidate-memory` skill for this project (not installed → tell the user and stop)
 3. After it completes, stamp the marker so the hook's nudge resets:
    ```bash
    node -e "require('fs').writeFileSync('<memory-dir>/.last-consolidated', new Date().toISOString()+'\n')"
