@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "zahidakhyar-skills",
-  "description": "Zahid Akhyar's agent skills for Claude Code, shared with the team.",
+  "description": "Agent skills for Claude Code by Zahid Akhyar: ship, review and release pull requests, orchestrate multi-repo work, and keep session learnings.",
   "version": "0.1.0",
   "author": {
     "name": "Zahid Akhyar",
@@ -9,5 +9,6 @@
   },
   "homepage": "https://github.com/zahidakhyar/skills",
   "repository": "https://github.com/zahidakhyar/skills",
+  "license": "MIT",
   "keywords": ["skills", "workflow", "git", "code-review", "productivity"]
 }

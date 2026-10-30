@@ -33,7 +33,7 @@ Returns one JSON object: `baseline`, `baseline_source`, `head`, `force_pushed`, 
 
 CI first: `gh pr checks <PR>`. When a check that runs typecheck and tests is green on `<head>`, that is the gate evidence; cite the check name in the report and do not run anything locally. Re-running what CI just proved costs minutes on this machine and proves the same thing.
 
-Run gates locally only when there is no such check (some repos have no CI gate at all), the check is red or still pending, or a specific finding needs one test run that CI does not isolate. Then detect the toolchain and run typecheck/build + tests. Commands, parallelism caps, and how to narrow a suite that's too heavy: **`~/.claude/skills/ship/references/gates.md`** — read the row for this repo's stack.
+Run gates locally only when there is no such check (some repos have no CI gate at all), the check is red or still pending, or a specific finding needs one test run that CI does not isolate. Then detect the toolchain and run typecheck/build + tests. Commands, parallelism caps, and how to narrow a suite that's too heavy: **`${CLAUDE_SKILL_DIR}/../ship/references/gates.md`** — read the row for this repo's stack.
 
 Run in a throwaway worktree, so a half-installed dependency or a test that writes fixtures can't corrupt the working tree you actually use:
 

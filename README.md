@@ -1,6 +1,9 @@
 # skills
 
-Agent skills for Claude Code, packaged as a plugin so the whole team works with the same ones. The repo is both the plugin and its marketplace: install it once and every skill in `skills/` comes with it, including ones added later.
+[![Validate](https://github.com/zahidakhyar/skills/actions/workflows/validate.yml/badge.svg)](https://github.com/zahidakhyar/skills/actions/workflows/validate.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+Agent skills for Claude Code, packaged as a plugin so you and your team work with the same ones. The repo is both the plugin and its marketplace: install it once and every skill in `skills/` comes with it, including ones added later.
 
 - [Install](#install)
 - [Skills](#skills)
@@ -9,6 +12,7 @@ Agent skills for Claude Code, packaged as a plugin so the whole team works with 
 - [Updating](#updating)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
+- [License](#license)
 
 ## Install
 
@@ -264,50 +268,22 @@ Optional plugins. The skills skip the step when the plugin is missing:
 claude plugin marketplace update zahidakhyar
 ```
 
-Installed copies are cached per version (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`), so bump `version` in `.claude-plugin/plugin.json` with every change to `main` that should reach the team.
+Installed copies are cached per version (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`), so a change reaches users only after the maintainer bumps `version` in `.claude-plugin/plugin.json`. Release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
 | `/zahidakhyar-skills:ship` is not recognised | Start a new session after installing; check `claude plugin details zahidakhyar-skills` |
-| Every skill shows up twice | The skills are loaded from both the plugin and `~/.claude/skills/`. Keep only one (see [Maintainer setup](#maintainer-setup)) |
+| Every skill shows up twice | The skills are loaded from both the plugin and `~/.claude/skills/`. Keep only one (see [local setup](CONTRIBUTING.md#local-setup)) |
 | A change on `main` doesn't arrive | Check that `version` was bumped, then run `claude plugin marketplace update zahidakhyar` |
 | `gh: command not found` / `HTTP 401` | Install `gh` and run `gh auth login` |
 | `orchestrate` can't start sessions | It needs the Claude desktop app's Code tab |
 
 ## Contributing
 
-### Maintainer setup
+Bug reports, fixes and new skills are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, how to write a skill, and the checks CI runs. Report security problems through [SECURITY.md](SECURITY.md).
 
-There are two ways to run the skills from a local clone. Use one per machine, never both:
+## License
 
-- **Symlinks (recommended for whoever edits the skills).** Edits are live in the next session, with no version bump or update step. Skills are called without a namespace (`/ship`). Don't install the plugin on that machine.
-
-  ```bash
-  for d in skills/*/; do ln -s "$PWD/$d" ~/.claude/skills/"$(basename "$d")"; done
-  ```
-
-- **Plugin from disk.** Loads the working tree exactly the way the team gets it, for testing before a release. Remove any symlinks first.
-
-  ```bash
-  claude --plugin-dir .
-  ```
-
-### Adding a skill
-
-1. Create `skills/<name>/SKILL.md` with `name` and `description` frontmatter. The description decides when Claude invokes the skill, so list the phrases people actually type.
-2. Put bundled files next to it (`scripts/`, `references/`) and reference them as `${CLAUDE_SKILL_DIR}/scripts/...`. For another skill's files, use `${CLAUDE_SKILL_DIR}/../<other-skill>/...`. Never hardcode `~/.claude/skills/...`; an installed plugin lives under `~/.claude/plugins/cache/`.
-3. Don't depend on files that only exist on your machine (personal `~/.claude/*.md` rules, hooks, settings). Bundle what the skill needs, and make calls to optional plugins skip cleanly.
-4. Make scripts executable: `chmod +x skills/<name>/scripts/*.sh`.
-5. Add the skill to the tables in this README.
-
-No manifest change is needed; every folder in `skills/` is picked up.
-
-### Releasing a change
-
-```bash
-claude plugin validate .
-```
-
-Then bump `version` in `.claude-plugin/plugin.json` (patch for fixes, minor for a new skill, major when a skill's arguments or behaviour change in a breaking way), and merge to `main`.
+[MIT](LICENSE)

@@ -14,7 +14,7 @@ A token starting with `--` is a flag; the one remaining token is the base/target
 | Flag | Effect |
 |---|---|
 | `--issue N` | Issue number for `Closes #N`, used when neither the branch name nor the commit message mentions one (step 8). Issue in another repo → `--issue owner/repo#N`: the `Closes` line writes it exactly like that, because a bare `#N` points at the PR's repo. |
-| `--draft` | Create the PR as a draft (step 8). Used by `/worker-loop`: in a repo without branch protection, draft is the only thing that keeps an unreviewed PR from being merged. |
+| `--draft` | Create the PR as a draft (step 8). In a repo without branch protection, draft is the only thing that keeps an unreviewed PR from being merged. |
 | `--reviewed` | Skip step 6c (code and security review); the checks in 6b still run. Used by `/orchestrate`, whose review-fix loop already reviewed this branch. |
 | `--auto-fix` | Once the PR exists, turn on the app's Auto-fix switch for it (step 10): this session is woken through `<ci-monitor-event>` when CI fails, a merge conflict appears, or a review comment arrives. Without this flag step 10 only offers it. The name follows the checkbox label in the app's CI popover, not a synonym. |
 

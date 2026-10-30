@@ -5,12 +5,13 @@
     "name": "Zahid Akhyar",
     "url": "https://github.com/zahidakhyar"
   },
-  "description": "Team skills for Claude Code.",
+  "description": "Agent skills for Claude Code by Zahid Akhyar.",
   "plugins": [
     {
       "name": "zahidakhyar-skills",
       "source": "./",
-      "description": "Zahid Akhyar's agent skills for Claude Code, shared with the team.",
+      "description": "Agent skills for Claude Code by Zahid Akhyar: ship, review and release pull requests, orchestrate multi-repo work, and keep session learnings.",
+      "license": "MIT",
       "category": "productivity",
       "keywords": ["skills", "workflow", "git", "code-review", "productivity"]
     }
