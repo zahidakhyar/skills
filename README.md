@@ -68,9 +68,16 @@ Plugin skills are namespaced: `/zahidakhyar-skills:ship`, `/zahidakhyar-skills:p
 
 The first five form one PR loop:
 
-```
-ship ──▶ pr-review ──▶ recheck ──▶ (merge on GitHub) ──▶ merged ──▶ release
- you      reviewer      reviewer        human              you        you
+```mermaid
+flowchart LR
+    ship["ship<br/><i>author</i>"] --> review["pr-review<br/><i>reviewer</i>"]
+    review -- "request changes" --> fix["author pushes fixes"]
+    fix --> recheck["recheck<br/><i>reviewer</i>"]
+    recheck -- "still open" --> fix
+    review -- approve --> merge(["merge on GitHub<br/><i>human</i>"])
+    recheck -- approve --> merge
+    merge --> merged["merged<br/><i>author</i>"]
+    merged -. "when cutting a version" .-> release["release<br/><i>maintainer</i>"]
 ```
 
 ### ship
@@ -94,6 +101,19 @@ What the gate does before anything is pushed:
 1. Picks a risk tier (Low / Medium / High) from the changed paths. The tier goes into the PR body as a `## Risk` line, and reviewers use it to set review depth.
 2. Runs typecheck, lint and the related tests, with commands taken from the repo's `package.json` scripts or CI workflow.
 3. Runs `code-review` at the tier's effort, and `security-review` when the diff touches auth, endpoint input, queries, uploads, user HTML or secrets.
+
+```mermaid
+flowchart TD
+    changes[local changes] --> branch[branch + format + commit]
+    branch --> tier[risk tier from changed paths]
+    tier --> checks[typecheck, lint, related tests]
+    checks --> review[code-review / security-review]
+    review --> fixable{red check or<br/>High/Medium finding?}
+    fixable -- no --> push[push + open PR]
+    fixable -- "yes, fixed" --> fixcommit[fix: commit, rerun checks]
+    fixcommit --> push
+    fixable -- "yes, can't fix" --> stop([stop, branch stays local])
+```
 
 Example: `/zahidakhyar-skills:ship dev --issue 42 --auto-fix`
 
@@ -168,6 +188,30 @@ Builds implementation plans in separate builder sessions while the current sessi
 - Two or more repos → locks a shared contract first, or uses `--contract <path>`.
 - One builder session per plan, each in its own worktree. Builders run on Sonnet by default; the coordinator suggests Opus per plan where it pays off, and `--opus` puts every builder on Opus.
 - When builders finish, runs a review-fix loop per repo and a combined cross-repo check, then has each builder `ship` its own PR when you say so.
+
+```mermaid
+sequenceDiagram
+    actor You
+    participant C as Coordinator (this session)
+    participant BE as Builder: backend
+    participant FE as Builder: frontend
+    You->>C: /orchestrate plan-be.md plan-fe.md
+    C->>C: lock API contract
+    par one worktree each
+        C->>BE: start session with plan + contract
+        C->>FE: start session with plan + contract
+    end
+    BE-->>C: DONE / BLOCKED / CONTRACT
+    FE-->>C: DONE / BLOCKED / CONTRACT
+    loop until no High/Medium finding
+        C->>BE: REVIEW / FIX
+        C->>FE: REVIEW / FIX
+    end
+    C->>You: report per repo
+    You->>C: ship it
+    C->>BE: /ship --auto-fix --reviewed
+    C->>FE: /ship --auto-fix --reviewed
+```
 
 Works only in the Claude desktop app's Code tab, which provides the session tools.
 
