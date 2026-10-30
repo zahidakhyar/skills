@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/zahidakhyar/skills/security/advisories/new
+    about: Report security problems privately, not in a public issue.
+  - name: Claude Code itself
+    url: https://github.com/anthropics/claude-code/issues
+    about: Problems with Claude Code, not with these skills.

@@ -93,7 +93,7 @@ Arguments: `/release <major|minor|patch>`. No argument → ask for the bump type
    - A commented-out key (`# S3_ENDPOINT ...`) is not a new env.
    - `<PREV>` in the compare link: the tag name, or the target branch name (`main`) on a first release.
    - `(#N)` references in squash-commit subjects are kept as they are.
-   - The Summary and Breaking prose goes through `humanizer:humanizer` (embedded mode) before the PR is created.
+   - The Summary and Breaking prose goes through `humanizer:humanizer` (embedded mode, when installed) before the PR is created.
 
 7. **Output** — the new version + the PR URL, plus a 1-line summary (branch → target). If the body has a `Before deploy` section, state its item count so the user knows there is prep to do. Remind them to merge with "Create a merge commit", not squash: squash leaves the tag on a commit outside the target branch's history. Then offer the post-merge step (8).
 

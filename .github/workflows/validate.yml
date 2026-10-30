@@ -1,0 +1,41 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@2.1.308
+
+      - name: Validate plugin and marketplace
+        run: claude plugin validate .
+
+      - name: Shellcheck bundled scripts
+        run: shellcheck -S warning skills/*/scripts/*.sh
+
+      - name: Scripts are executable
+        run: |
+          bad=$(git ls-files -s 'skills/*/scripts/*' | awk '$1 != "100755" {print $4}')
+          if [ -n "$bad" ]; then echo "Not executable (chmod +x):"; echo "$bad"; exit 1; fi
+
+      - name: No hardcoded skill paths
+        run: |
+          if grep -rnF '.claude/skills/' skills; then
+            echo "Use \${CLAUDE_SKILL_DIR} instead of a path under .claude/skills/ (see CONTRIBUTING.md)."
+            exit 1
+          fi

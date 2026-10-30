@@ -1,0 +1,58 @@
+name: Bug report
+description: A skill did the wrong thing, failed, or didn't trigger.
+labels: [bug]
+body:
+  - type: dropdown
+    id: skill
+    attributes:
+      label: Skill
+      options:
+        - ship
+        - pr-review
+        - recheck
+        - merged
+        - release
+        - orchestrate
+        - learned
+        - other / not sure
+    validations:
+      required: true
+  - type: textarea
+    id: prompt
+    attributes:
+      label: What you asked
+      description: The exact command or prompt, e.g. `/zahidakhyar-skills:ship dev --auto-fix`.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: What Claude did, plus any error output. Remove tokens, secrets and private repo details.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: Output of `claude plugin details zahidakhyar-skills` (first line).
+    validations:
+      required: true
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Code version
+      description: Output of `claude --version`, and whether you use the CLI, desktop app, or IDE extension.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: macOS 15, Ubuntu 24.04, Windows 11 + WSL, ...

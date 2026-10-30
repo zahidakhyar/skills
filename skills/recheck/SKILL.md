@@ -11,12 +11,14 @@ Argument: `/recheck <PR number|URL>`. Missing → list open PRs carrying a `revi
 
 Needs `gh` (authenticated) and `jq`. The repo can be any language — gates are detected from the repo, never assumed from habit.
 
+Severity labels, body shape and comment style follow `${CLAUDE_SKILL_DIR}/../pr-review/references/review-protocol.md`; a repo `REVIEW.md` overrides it.
+
 **The one rule everything else serves:** a verdict comes from reading the post-fix code or from command output you paste into the report. Commit messages, PR descriptions, and author replies describe *intent*; they are evidence of what someone meant to do, not of what the code now does. Half the point of a recheck is catching the gap between the two.
 
 ## 1. Get the factual state
 
 ```bash
-~/.claude/skills/recheck/scripts/pr_state.sh <PR> [repo-dir]
+"${CLAUDE_SKILL_DIR}/scripts/pr_state.sh" <PR> [repo-dir]
 ```
 
 Returns one JSON object: `baseline`, `baseline_source`, `head`, `force_pushed`, `unchanged`, `commits[]`, `changed_files[]`. Three things it handles that are easy to get wrong by hand:
@@ -31,7 +33,7 @@ Returns one JSON object: `baseline`, `baseline_source`, `head`, `force_pushed`, 
 
 CI first: `gh pr checks <PR>`. When a check that runs typecheck and tests is green on `<head>`, that is the gate evidence; cite the check name in the report and do not run anything locally. Re-running what CI just proved costs minutes on this machine and proves the same thing.
 
-Run gates locally only when there is no such check (some repos have no CI gate at all), the check is red or still pending, or a specific finding needs one test run that CI does not isolate. Then detect the toolchain and run typecheck/build + tests. Commands, parallelism caps, and how to narrow a suite that's too heavy: **`~/.claude/skills/ship/references/gates.md`** — read the row for this repo's stack.
+Run gates locally only when there is no such check (some repos have no CI gate at all), the check is red or still pending, or a specific finding needs one test run that CI does not isolate. Then detect the toolchain and run typecheck/build + tests. Commands, parallelism caps, and how to narrow a suite that's too heavy: **`${CLAUDE_SKILL_DIR}/../ship/references/gates.md`** — read the row for this repo's stack.
 
 Run in a throwaway worktree, so a half-installed dependency or a test that writes fixtures can't corrupt the working tree you actually use:
 
@@ -51,7 +53,7 @@ If a gate can't run at all — missing services, no gate defined for the languag
 They live in three places, and using only the first is the common miss:
 
 ```bash
-~/.claude/skills/recheck/scripts/threads.sh list <PR>     # unresolved inline threads, every page
+"${CLAUDE_SKILL_DIR}/scripts/threads.sh" list <PR>     # unresolved inline threads, every page
 gh api --paginate repos/{owner}/{repo}/pulls/<PR>/reviews -q '.[] | select(.body != "") | {author:.user.login, state, body}'
 gh api --paginate repos/{owner}/{repo}/issues/<PR>/comments -q '.[] | {author:.user.login, body}'
 ```
@@ -84,8 +86,8 @@ Two failure modes worth guarding against, because both feel reasonable in the mo
 Resolve only when the verdict is `FIXED` **and** the thread's `path` is in `changed_files`. `REBUTTED-VALID` is the single exception: no code change is expected there, so say that explicitly in the reply.
 
 ```bash
-~/.claude/skills/recheck/scripts/threads.sh resolve <thread-id>
-~/.claude/skills/recheck/scripts/threads.sh reply <thread-id> "<body>"   # threads that stay open
+"${CLAUDE_SKILL_DIR}/scripts/threads.sh" resolve <thread-id>
+"${CLAUDE_SKILL_DIR}/scripts/threads.sh" reply <thread-id> "<body>"   # threads that stay open
 ```
 
 Resolve a `FIXED` thread without a reply: the author already wrote what they changed under it, and the resolved state is the acknowledgement. A reply belongs only on threads that stay open (what is still wrong, one line) and on `REBUTTED-VALID` (say no change is expected). The verification detail goes in the review body's gate clause, once, not under each thread.

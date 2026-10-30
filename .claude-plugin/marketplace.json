@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "zahidakhyar",
+  "owner": {
+    "name": "Zahid Akhyar",
+    "url": "https://github.com/zahidakhyar"
+  },
+  "description": "Agent skills for Claude Code by Zahid Akhyar.",
+  "plugins": [
+    {
+      "name": "zahidakhyar-skills",
+      "source": "./",
+      "description": "Agent skills for Claude Code by Zahid Akhyar: ship, review and release pull requests, orchestrate multi-repo work, and keep session learnings.",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["skills", "workflow", "git", "code-review", "productivity"]
+    }
+  ]
+}
