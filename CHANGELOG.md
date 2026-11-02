@@ -4,6 +4,10 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- `review-queue` skill: finds every PR that requests your review and runs `pr-review` or `recheck` on each in its own session. `--every <interval>` keeps checking on a loop.
+
 ## [0.1.0] - 2026-10-30
 
 ### Added
