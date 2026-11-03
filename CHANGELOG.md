@@ -4,6 +4,10 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- `autopilot` skill: one task from pass criteria to a PR with local E2E evidence, then the same E2E scenarios on dev after you merge, reported in five lines. `merged` suggests `/autopilot continue <PR>` when a run is pending.
+
 ## [0.2.0] - 2026-11-03
 
 ### Added
