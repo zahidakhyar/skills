@@ -4,9 +4,11 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-03
+
 ### Added
 
-- `autopilot` skill: one task from pass criteria to a PR with local E2E evidence, then the same E2E scenarios on dev after you merge, reported in five lines. `merged` suggests `/autopilot continue <PR>` when a run is pending.
+- `autopilot` skill: one task from pass criteria to a PR with local E2E evidence, then the same E2E scenarios on dev after you merge, reported in five lines. `merged` suggests `/autopilot continue <PR>` when a run is pending. (#5)
 
 ## [0.2.0] - 2026-11-03
 
@@ -26,6 +28,7 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/zahidakhyar/skills/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/zahidakhyar/skills/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/zahidakhyar/skills/releases/tag/v0.1.0
