@@ -9,13 +9,15 @@ This session is the **dispatcher**. It finds the PRs waiting on the user's revie
 
 Arguments:
 - `--team`: also include PRs that request a review from one of the user's teams. Default: only PRs that name the user directly.
-- `--root <dir>`: where the local clones live. Default `$REVIEW_QUEUE_ROOT`, else `~/Repositories`.
+- `--root <dir>`: where the local clones live. Default `$REVIEW_QUEUE_ROOT`. With neither set, ask first (step 1); there is no built-in default.
 - `--comment`: passed on to every `pr-review` child, which then posts without showing a draft first. Without it, a `pr-review` child shows its draft and waits for the user's yes in that child session. `recheck` has no draft step: it resolves threads and posts on its own, as it does when run directly.
 - `--every <interval>` (e.g. `30m`): keep checking on that interval. See "Interval mode".
 
 Needs `gh` (authenticated) and `jq`. Reviews run in the user's existing local clones; each child's review skill makes its own throwaway worktree there, so the clone's checked-out branch is never touched.
 
 ## 1. Build the queue
+
+No `--root` and no `$REVIEW_QUEUE_ROOT` → ask the user which folder holds their local clones before running anything. Never guess a path. Use the answer as `--root` for the rest of this run, interval ticks included, and mention that setting `REVIEW_QUEUE_ROOT` skips the question next time.
 
 ```bash
 bash "${CLAUDE_SKILL_DIR}/scripts/queue.sh" [--team] [--root <dir>]
@@ -104,3 +106,4 @@ The loop lives in this session only: it fires while the app is open and this ses
 | `cwd` set to the umbrella folder that holds many repos | The PR's own clone (step 4) |
 | Starting sessions from a loop tick | Refused by the app; announce and offer the "Start reviews" button |
 | Passing `--every` on to the loop command | Strip it, or each tick schedules another loop |
+| Guessing a clone root when none was given | Ask the user (step 1); `queue.sh` exits 2 without one |

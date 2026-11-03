@@ -5,7 +5,7 @@
 #   queue.sh [--team] [--root <dir>] [--new <seen-file>]
 #
 # --team  also include PRs that request a review from one of my teams.
-# --root  where to look for clones (default: $REVIEW_QUEUE_ROOT, else ~/Repositories).
+# --root  where to look for clones (default: $REVIEW_QUEUE_ROOT; one of the two is required).
 # --new   keep only pr-review/recheck rows whose "repo#N@head" key is not in
 #         <seen-file>, then append their keys to it. For interval runs, so each
 #         PR head is announced once.
@@ -21,7 +21,7 @@ set -euo pipefail
 # user-review-requested has no gh flag, so it goes in the query string. Other
 # qualifiers with @me are unreliable there; --team uses the flag instead.
 search=("user-review-requested:@me")
-root="${REVIEW_QUEUE_ROOT:-$HOME/Repositories}"
+root="${REVIEW_QUEUE_ROOT:-}"
 seen=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -31,6 +31,12 @@ while [ $# -gt 0 ]; do
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
+if [ -z "$root" ]; then
+  echo "no clone root: pass --root <dir> or set REVIEW_QUEUE_ROOT" >&2; exit 2
+fi
+if [ ! -d "$root" ]; then
+  echo "clone root is not a directory: $root" >&2; exit 2
+fi
 
 state_script="$(cd "$(dirname "$0")/../../recheck/scripts" && pwd)/pr_state.sh"
 index=$(mktemp)
