@@ -6,7 +6,7 @@
 #
 # --endpoint     GET the URL and read the deployed SHA with --jq
 #                (default: .sha // .commit // .version). Short and full SHAs match by prefix.
-# --gh-workflow  read the workflow run for --sha with `gh run list`.
+# --gh-workflow  read the workflow run for --sha with `gh run list`; needs the full SHA.
 #
 # exit 0  DEPLOYED <sha> via <endpoint|gh>
 # exit 1  FAILED <reason>
@@ -37,6 +37,10 @@ if ! [[ "$sha" =~ ^[0-9a-f]{7,40}$ ]]; then
 fi
 if ! [[ "$timeout_min" =~ ^[0-9]+$ ]]; then
   echo "--timeout-min must be a whole number of minutes" >&2
+  exit 2
+fi
+if [ -n "$workflow" ] && ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "--gh-workflow needs the full 40-character SHA (gh run list --commit matches it exactly)" >&2
   exit 2
 fi
 if [ -n "$workflow" ] && [ -z "$repo" ]; then

@@ -22,7 +22,7 @@ The endpoint is read without credentials, so the host gate does not apply to it.
 Detect: a workflow under `.github/workflows/` that deploys on push to `dev` (Azure: `azure/webapps-deploy`, `Azure/functions-action`, `azure/container-apps-deploy-action`; others: `railway up`, `vercel deploy`).
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/scripts/wait_deploy.sh --sha <merge-sha> --timeout-min 20 \
+bash ${CLAUDE_SKILL_DIR}/scripts/wait_deploy.sh --sha <full 40-char merge sha> --timeout-min 20 \
   --gh-workflow <workflow file name> --repo <owner/repo>
 ```
 

@@ -5,6 +5,7 @@
 #   run_dir.sh <slug>         create and print <main>/.autopilot/<YYYY-MM-DD>-<slug>
 #   run_dir.sh --find <pr>    print the run folder whose state.json has .pr == <pr>
 #   run_dir.sh --branch <b>   print the newest run folder whose state.json has .branch == <b>
+#   run_dir.sh --blocked      print the newest run folder whose state.json has .phase == "blocked"
 #
 # The first call adds "/.autopilot/" to .git/info/exclude so the folder never
 # shows up as a change.
@@ -16,9 +17,10 @@ root="$main/.autopilot"
 
 if [ "${1:-}" = "--find" ]; then
   pr="${2:?usage: run_dir.sh --find <pr>}"
+  pr="${pr#\#}"
   for state in "$root"/*/state.json; do
     [ -f "$state" ] || continue
-    if jq -e --argjson pr "$pr" '.pr == $pr' "$state" >/dev/null 2>&1; then
+    if jq -e --arg pr "$pr" '(.pr | tostring) == $pr' "$state" >/dev/null 2>&1; then
       dirname "$state"
       exit 0
     fi
@@ -41,7 +43,23 @@ if [ "${1:-}" = "--branch" ]; then
   exit 1
 fi
 
-slug="${1:?usage: run_dir.sh <slug> | --find <pr> | --branch <branch>}"
+if [ "${1:-}" = "--blocked" ]; then
+  match=""
+  for state in "$root"/*/state.json; do
+    [ -f "$state" ] || continue
+    if jq -e '.phase == "blocked"' "$state" >/dev/null 2>&1; then
+      match="$(dirname "$state")"
+    fi
+  done
+  [ -n "$match" ] && { echo "$match"; exit 0; }
+  echo "no blocked autopilot run" >&2
+  exit 1
+fi
+
+slug="${1:?usage: run_dir.sh <slug> | --find <pr> | --branch <branch> | --blocked}"
+case "$slug" in
+  -*) echo "unknown option: $slug" >&2; exit 2 ;;
+esac
 dir="$root/$(date +%Y-%m-%d)-$slug"
 mkdir -p "$dir"
 

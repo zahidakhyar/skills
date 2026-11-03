@@ -13,16 +13,16 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 
 - `<task text | #N | issue URL>` → phase 1.
 - `continue [PR]`, or a message saying the PR is merged. Check in this order:
-  1. No PR given and `run_dir.sh --branch <current branch>` finds a run with `phase: blocked` → resume phase 1 at step 4 inside its `worktree`, with its criteria and scenarios.
+  1. No PR given and a blocked run exists (`run_dir.sh --branch <current branch>` with `phase: blocked`, else `run_dir.sh --blocked`, which works from the main checkout) → resume phase 1 at step 4 inside its `worktree`, with its criteria and scenarios.
   2. Otherwise → phase 2 for the given PR, else the current branch's PR. Neither exists → ask which PR.
 
 ## Run folder
 
-`bash ${CLAUDE_SKILL_DIR}/scripts/run_dir.sh <slug>` creates it in the main checkout and excludes it from git. Phase 2 finds it with `run_dir.sh --find <pr>`, a blocked run with `run_dir.sh --branch <branch>`. Contents:
+`bash ${CLAUDE_SKILL_DIR}/scripts/run_dir.sh <slug>` creates it in the main checkout and excludes it from git. Phase 2 finds it with `run_dir.sh --find <pr>`, a blocked run with `run_dir.sh --branch <branch>` or `--blocked`. Contents:
 
 | File | Written in | Holds |
 |---|---|---|
-| `state.json` | step 1, updated at every step | `branch`, `worktree`, `phase` (`build` → `blocked` or `pr-open` → `done`), `tested_sha`, `pr`, `url`, `repo`, `dev_url_hint` |
+| `state.json` | step 1 (`phase`), step 3 (`branch`, `worktree`), then every step | `branch`, `worktree`, `phase` (`build` → `blocked` or `pr-open` → `done`), `tested_sha`, `pr`, `url`, `repo`, `dev_url_hint` |
 | `criteria.md` | step 1 | Pass criteria `C1…Cn` |
 | `scenarios.md` | step 1 | Per scenario: ID, criterion it proves, numbered steps against `{BASE_URL}`, expected result |
 | `local/`, `dev/` | steps 4, P3 | Per scenario: screenshot, Playwright trace, HTTP response, command output |
@@ -30,23 +30,23 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 
 ## Phase 1 — task to PR
 
-1. **Criteria and scenarios.** Create the run folder and write `state.json` with `branch` and `phase: build`. Read the issue when one is given. Write 3–7 pass criteria as things a user can observe ("filtering by PAID shows only paid orders; the URL keeps `?status=PAID` after reload"). Derive at least one scenario per criterion, edge cases included (empty result, invalid input, unauthorized). Post the criteria in chat in one short list ending with "Lanjut dengan kriteria ini kecuali ada yang salah." and keep going. Do not wait for an answer.
+1. **Criteria and scenarios.** Create the run folder and write `state.json` with `phase: build`. Read the issue when one is given. Write 3–7 pass criteria as things a user can observe ("filtering by PAID shows only paid orders; the URL keeps `?status=PAID` after reload"). Derive at least one scenario per criterion, edge cases included (empty result, invalid input, unauthorized). Post the criteria in chat in one short list ending with "Lanjut dengan kriteria ini kecuali ada yang salah." and keep going. Do not wait for an answer.
 2. **Repo config.** Read `.claude/autopilot.md`. Missing → draft it from [config-template.md](references/config-template.md), filled from `package.json` scripts, `docker-compose*`, `.env.example`, `.github/workflows`, and `railway.json`/`railway.toml`. It is committed with this PR.
 3. **Build, always in a worktree.** The main checkout is the user's: its branch, uncommitted files and running processes stay untouched.
    - This session already runs in a worktree (`git rev-parse --git-dir` differs from `--git-common-dir`) → use it.
    - Otherwise, from the main checkout root: `git check-ignore -q .worktrees/ || echo '.worktrees/' >> .git/info/exclude`, then `git fetch origin <base>` and `git worktree add -b <branch> .worktrees/autopilot-<slug> origin/<base>`. Base: `dev` → `develop` → the default branch, the first one that exists on the remote. Work only inside that path from now on (`cd` there, or `git -C`).
    - Copy the gitignored env files (`.env`, `.env.local`, `.env.*.local`) from the main checkout, then install dependencies with the repo's package manager.
-   - Write `worktree` (absolute path) into `state.json`.
+   - Write `branch` and `worktree` (absolute path) into `state.json`.
    - Then build, following the repo's own workflow and stack skills. TDD for logic (superpowers:test-driven-development when that plugin is installed).
 4. **Local E2E.** Start the app per config, from the worktree, isolated from whatever the user is running:
    - Port: check what listens (`lsof -iTCP -sTCP:LISTEN -P`) and start on a free port. `{BASE_URL}` follows that port.
-   - Database: never migrate or seed a database the user's own app uses. Give the run its own database or compose project (`DATABASE_URL=…/<db>_autopilot`, or `docker compose -p autopilot-<slug>` with its ports remapped). The env files copied in step 3 still point at the user's database and port: rewrite them in the worktree before any migrate or seed. When it can't be separated safely, treat it as "the app won't start" below. After the PR is open, drop the run's database or compose project; a blocked run keeps it for the resume.
+   - Database: never migrate or seed a database the user's own app uses. Give the run its own database or compose project (`DATABASE_URL=…/<db>_autopilot`, or `docker compose -p autopilot-<slug>` with its ports remapped). The env files copied in step 3 still point at the user's database and port: rewrite them in the worktree before any migrate or seed. When it can't be separated safely, treat it as "the app won't start" below. When step 5 is finished, drop the run's database or compose project; a blocked run keeps it for the resume.
    - Never stop, restart or reuse the user's processes. At the end, stop only what this run started.
 
    Prepare what the scenarios need through the project's own means: `docker compose up` for its DB, the migrate and seed scripts, `.env` copied from `.env.example` with local values only. Test accounts come only from the seed, fixture or example-config files; when none exist, add one to the seed in this branch. Then run every scenario: web through `playwright-cli`, APIs through HTTP calls, other effects through the nearest real runner (CLI, read-only DB query, log or queue check). Commit the work before the run, so the evidence belongs to one SHA. Store the evidence under `local/` and write that HEAD as `tested_sha`. A failing scenario → fix, commit, rerun; after 3 rounds on the same scenario, stop and report. Every scenario must pass before step 5.
    - **The app still won't start** (a secret, external service or DB the machine can't provide), or a scenario still fails after 3 rounds → set `phase: blocked` and stop here. No PR, no draft PR. Report which variable or service is missing and the one command to rerun once it is there.
 5. **Ship.** Invoke `ship` with `--auto-fix` (never `--reviewed`). Then:
-   - `ship`'s gate added commits after `tested_sha` (review fixes) → rerun local E2E on the new HEAD and update `tested_sha`.
+   - `ship` added any commit after `tested_sha` (`chore: format`, review fixes) → rerun local E2E on the new HEAD and update `tested_sha`. A scenario now fails → mark the PR draft (`gh pr ready <N> --undo`), set `phase: blocked`, and report as a stop; fix it through step 4 and push to the same PR.
    - Add one line per scenario under the PR body's `## Test plan`: `- [x] E2E local S1 (<criterion>): <steps in a few words> → pass`. Do it with `gh pr view <N> --json body`, inserting the lines, then `gh pr edit <N> --body-file <file>`. Phase 2 rebuilds the scenarios from these lines if the run folder is lost.
    - Write `pr`, `url`, `repo` and `phase: pr-open` into `state.json`.
 6. **Report and hand off.** Write the report (format below) to `report.md` and send it with `SendUserFile`. `wrap_up` ask: "Kabari aku setelah merge, sertakan URL dev."
@@ -86,6 +86,10 @@ Evidence: <path to report.md>
 - FAIL: any scenario failed. PARTIAL: none failed, at least one SKIPPED or UNVERIFIED. PASS: every scenario passed.
 - The phase-1 verdict covers local only; `Dev: pending merge` does not lower it.
 - A stop (app won't start, 3 failed fix rounds, deploy failed) uses the same block with `Verdict: FAIL` and one extra line `Blocked: <what is missing> — <command to resume>`.
+
+## GitHub writes
+
+Typing `/autopilot` is the user's go-ahead for the writes this flow makes, with no further confirmation: the push and PR through `ship`, the Test plan edit in step 5, marking the PR draft when a rerun fails, and the dev result comment in P5. Anything else that posts, merges or deletes on GitHub asks first.
 
 ## Never
 

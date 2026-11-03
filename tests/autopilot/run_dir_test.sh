@@ -33,11 +33,23 @@ rc=0
 (cd "$tmp/wt" && "$script" --find 7 >/dev/null 2>&1) || rc=$?
 [ "$rc" = "1" ] || fail "--find 7 exit $rc, want 1"
 
+echo '{"pr":"43"}' > "$out/state.json"
+found="$(cd "$tmp/wt" && "$script" --find '#43' || true)"
+[ "$found" = "$out" ] || fail "--find '#43' with string pr → '$found', want '$out'"
+
 echo '{"branch":"feat/x"}' > "$out/state.json"
 found="$(cd "$tmp/wt" && "$script" --branch feat/x || true)"
 [ "$found" = "$out" ] || fail "--branch feat/x → '$found', want '$out'"
 rc=0
 (cd "$tmp/wt" && "$script" --branch feat/y >/dev/null 2>&1) || rc=$?
 [ "$rc" = "1" ] || fail "--branch feat/y exit $rc, want 1"
+
+echo '{"branch":"feat/x","phase":"blocked"}' > "$out/state.json"
+found="$(cd "$main" && "$script" --blocked || true)"
+[ "$found" = "$out" ] || fail "--blocked → '$found', want '$out'"
+echo '{"branch":"feat/x","phase":"pr-open"}' > "$out/state.json"
+rc=0
+(cd "$main" && "$script" --blocked >/dev/null 2>&1) || rc=$?
+[ "$rc" = "1" ] || fail "--blocked with no blocked run exit $rc, want 1"
 
 [ "$fails" -eq 0 ] && echo "run_dir: all pass" || exit 1

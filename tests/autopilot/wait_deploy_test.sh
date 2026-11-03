@@ -43,13 +43,13 @@ FAKE_CURL_BODY='{"build":{"commit":"abc1234def"}}' \
   check 0 "DEPLOYED" -- --sha abc1234def99 --timeout-min 0 --endpoint https://x/v --jq .build.commit
 
 FAKE_GH_BODY='[{"status":"completed","conclusion":"failure"}]' \
-  check 1 "FAILED deploy workflow concluded failure" -- --sha abc1234 --timeout-min 0 --gh-workflow deploy.yml --repo o/r
+  check 1 "FAILED deploy workflow concluded failure" -- --sha abc1234abc1234abc1234abc1234abc1234abcde --timeout-min 0 --gh-workflow deploy.yml --repo o/r
 
 FAKE_GH_BODY='[{"status":"completed","conclusion":"success"}]' \
-  check 0 "DEPLOYED abc1234 via gh" -- --sha abc1234 --timeout-min 0 --gh-workflow deploy.yml --repo o/r
+  check 0 "DEPLOYED abc1234abc1234abc1234abc1234abc1234abcde via gh" -- --sha abc1234abc1234abc1234abc1234abc1234abcde --timeout-min 0 --gh-workflow deploy.yml --repo o/r
 
 FAKE_GH_BODY='[]' \
-  check 3 "TIMEOUT after 0m" -- --sha abc1234 --timeout-min 0 --gh-workflow deploy.yml --repo o/r
+  check 3 "TIMEOUT after 0m" -- --sha abc1234abc1234abc1234abc1234abc1234abcde --timeout-min 0 --gh-workflow deploy.yml --repo o/r
 
 check 2 "" -- --sha abc1234 --timeout-min 0
 
@@ -58,5 +58,7 @@ FAKE_CURL_BODY='{"status":"ok","version":1}' \
 
 check 2 "" -- --sha a --timeout-min 0 --endpoint https://x/v
 check 2 "" -- --sha abc1234 --timeout-min 20m --endpoint https://x/v
+
+check 2 "" -- --sha abc1234 --timeout-min 0 --gh-workflow deploy.yml --repo o/r
 
 [ "$fails" -eq 0 ] && echo "wait_deploy: all pass" || exit 1
