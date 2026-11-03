@@ -69,6 +69,7 @@ Plugin skills are namespaced: `/zahidakhyar-skills:ship`, `/zahidakhyar-skills:p
 | [`merged`](#merged) | A PR was merged and the local leftovers need cleaning |
 | [`release`](#release) | Cut a new version of a JS/TS project |
 | [`orchestrate`](#orchestrate) | Build one or more implementation plans in separate sessions |
+| [`autopilot`](#autopilot) | One task end to end, with E2E proof locally and on dev |
 | [`learned`](#learned) | Save what this session taught Claude to memory |
 
 The first five form one PR loop:
@@ -235,6 +236,29 @@ sequenceDiagram
 
 Works only in the Claude desktop app's Code tab, which provides the session tools.
 
+### autopilot
+
+One task carried to evidence: pass criteria, build, local E2E, PR, and after you merge, the same E2E scenarios on dev.
+
+```
+/zahidakhyar-skills:autopilot <task | #issue | issue URL>
+/zahidakhyar-skills:autopilot continue [PR]
+```
+
+- Phase 1 writes 3–7 pass criteria and one scenario per criterion, builds with TDD in its own worktree under `.worktrees/` (your checkout, uncommitted files and running dev server stay untouched; the local run gets its own port and database), then runs every scenario locally (Playwright via the `playwright-cli` skill for web, HTTP calls for APIs). Evidence goes to `.autopilot/<date>-<slug>/` in the main checkout, excluded from git.
+- The app won't start locally → stops before `ship`, with no PR or draft PR, and names what is missing. Otherwise it runs `ship --auto-fix`; the PR's Test plan lists each local scenario.
+- The merge is yours. Tell Claude it is merged and give the dev URL (`merged` also suggests `/autopilot continue <PR>`). Phase 2 waits for the merge commit to be live (`/version` endpoint, GitHub Actions, Railway, or the Azure portal through Chrome), reruns the scenarios on dev, and comments the results on the PR.
+- Logs in on dev only when the hostname has a test label (`dev`, `staging`, `test`, `qa`, `sandbox`, `preview`), with test accounts from the repo's seed or fixtures. Never touches prod, never merges.
+- Every phase ends with the same five lines:
+
+```
+Verdict: PASS | PARTIAL | FAIL
+Tested: <N> scenarios — <names>
+Local: <n>/<N> pass
+Dev: <n>/<N> pass @ <host> <sha7> | pending merge
+Evidence: <path to report.md>
+```
+
 ### learned
 
 Turns corrections, confirmed choices and project decisions from the session into memory files Claude reads next time.
@@ -261,6 +285,7 @@ The skills read their conventions from the repo they run in. None of these files
 | `package.json` scripts, `.github/workflows/*.yml` | `ship`, `pr-review`, `recheck` | Source of the typecheck, lint and test commands. A green CI check that already runs them is cited instead of re-run |
 | `dev` / `develop` branch | `ship`, `orchestrate` | Default PR target when present |
 | `CHANGELOG.md` | `release` | Updated on each release when present |
+| `.claude/autopilot.md` | `autopilot` | Local start command, dev URL hint, deploy signal, test-account source. Drafted on the first run and committed in that PR |
 
 ## Requirements
 
@@ -273,7 +298,7 @@ Optional plugins. The skills skip the step when the plugin is missing:
 |---|---|---|
 | `humanizer` | `pr-review`, `release` | Rewriting review and PR prose so it reads naturally |
 | `impeccable` | `pr-review` | UI audit on frontend diffs |
-| `superpowers` | `orchestrate` | Plan execution inside builder sessions |
+| `superpowers` | `orchestrate`, `autopilot` | Plan execution inside builder sessions; TDD during the build |
 | `anthropic-skills` | `learned` | `/learned consolidate` |
 
 `code-review` and `security-review` are built into Claude Code.
