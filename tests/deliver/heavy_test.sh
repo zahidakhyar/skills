@@ -29,16 +29,14 @@ true &
 dead=$!
 wait "$dead"
 mkdir -p "$HEAVY_LOCK"
-echo "$dead" >"$HEAVY_LOCK/pid"
-echo "whatever" >"$HEAVY_LOCK/start"
+printf '%s\nwhatever\nold\n' "$dead" >"$HEAVY_LOCK/info"
 start=$SECONDS
 "$script" true 2>/dev/null || fail "stale dead pid: run failed"
 [ $((SECONDS - start)) -le 2 ] || fail "stale dead pid: took too long"
 
 # stale reused pid (alive, different start time)
 mkdir -p "$HEAVY_LOCK"
-echo "$$" >"$HEAVY_LOCK/pid"
-echo "Thu Jan  1 00:00:00 1970" >"$HEAVY_LOCK/start"
+printf '%s\nThu Jan  1 00:00:00 1970\nold\n' "$$" >"$HEAVY_LOCK/info"
 start=$SECONDS
 "$script" true 2>/dev/null || fail "stale reused pid: run failed"
 [ $((SECONDS - start)) -le 2 ] || fail "stale reused pid: took too long"
@@ -51,5 +49,42 @@ kill -TERM "$holder"
 wait "$holder" 2>/dev/null || true
 sleep 0.5
 [ -e "$HEAVY_LOCK" ] && fail "lock left behind after TERM"
+
+# no_overlap <log>: every "s <id>" is followed directly by "e <id>".
+no_overlap() {
+  awk '$1 == "s" { if (open != "") bad = 1; open = $2 } $1 == "e" { if (open != $2) bad = 1; open = "" } END { exit bad }' "$1"
+}
+
+# A slow ps widens the window between taking the lock and recording the
+# holder's start time; waiters must never treat that window as stale.
+fakebin="$tmp/fakebin"
+mkdir -p "$fakebin"
+realps="$(command -v ps)"
+printf '#!/usr/bin/env bash\nsleep 0.3\nexec %s "$@"\n' "$realps" >"$fakebin/ps"
+chmod +x "$fakebin/ps"
+
+# concurrent waiters with a slow ps
+log="$tmp/conc.log"
+for i in 1 2 3 4; do
+  PATH="$fakebin:$PATH" "$script" sh -c "echo 's $i' >>'$log'; sleep 0.3; echo 'e $i' >>'$log'" 2>/dev/null &
+done
+wait
+[ "$(grep -c '^s ' "$log")" = "4" ] || fail "concurrent: not all 4 ran"
+no_overlap "$log" || fail "concurrent: heavy runs overlapped: $(tr '\n' ',' <"$log")"
+[ -e "$HEAVY_LOCK" ] && fail "concurrent: lock left behind"
+
+# several waiters taking over the same stale lock
+true &
+dead=$!
+wait "$dead"
+mkdir -p "$HEAVY_LOCK"
+printf '%s\nwhatever\nold\n' "$dead" >"$HEAVY_LOCK/info"
+log="$tmp/stale.log"
+for i in 1 2 3 4; do
+  PATH="$fakebin:$PATH" "$script" sh -c "echo 's $i' >>'$log'; sleep 0.3; echo 'e $i' >>'$log'" 2>/dev/null &
+done
+wait
+[ "$(grep -c '^s ' "$log")" = "4" ] || fail "stale takeover: not all 4 ran"
+no_overlap "$log" || fail "stale takeover: heavy runs overlapped: $(tr '\n' ',' <"$log")"
 
 [ "$fails" -eq 0 ] && echo "heavy: all pass" || exit 1

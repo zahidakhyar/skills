@@ -33,8 +33,8 @@ case "\$*" in
     echo '[{"number":1,"title":"one","url":"u1"},{"number":2,"title":"two","url":"u2"}]' ;;
   "issue list -R o/b "*"--label ready-for-agent"*)
     echo '[{"number":5,"title":"five","url":"u5"}]' ;;
-  "pr list -R o/a "*) echo '[2]' ;;
-  "pr list -R o/b "*) echo '[]' ;;
+  "pr list -R o/a "*) echo '[{"body":"Fixes #2 on dev","closingIssuesReferences":[]},{"body":"","closingIssuesReferences":[{"number":1,"repository":{"name":"other","owner":{"login":"x"}}}]}]' ;;
+  "pr list -R o/b "*) echo '[{"body":"see #50 and #5x","closingIssuesReferences":[]}]' ;;
   *) echo "unexpected: \$*" >&2; exit 1 ;;
 esac
 EOF

@@ -11,7 +11,7 @@
 #   rule: assignee:@me        issues assigned to the gh user
 #   rule: label:<name>        issues carrying that label
 #   base: <branch>            optional, passed through
-# Issues that an open PR already closes are dropped.
+# Issues an open PR closes or mentions as "#N" (any base branch) are dropped.
 #
 # Prints one JSON array of {repo, number, title, url, clone, rule, base}.
 # Clones are matched by their origin remote; worktrees (.git file) never count.
@@ -69,12 +69,23 @@ find "$root" -maxdepth 6 \( -name node_modules -o -name .worktrees -o -name work
       # gh reads stdin; without </dev/null it swallows the clone list.
       issues="$(gh issue list -R "$repo" --state open --limit 50 "${filter[@]}" \
         --json number,title,url </dev/null)" || { echo "skipping $repo: gh issue list failed" >&2; continue; }
-      closed="$(gh pr list -R "$repo" --state open --limit 100 --json closingIssuesReferences \
-        --jq '[.[].closingIssuesReferences[].number]' </dev/null)" || closed='[]'
+      # Any open PR, whatever its base: closing keywords only register on PRs
+      # into the default branch, so a "#N" in the body counts as well.
+      if ! prs="$(gh pr list -R "$repo" --state open --limit 100 \
+        --json body,closingIssuesReferences </dev/null)"; then
+        echo "warning: $repo: gh pr list failed, issues with an open PR may be listed" >&2
+        prs='[]'
+      fi
 
       jq -c --arg repo "$repo" --arg clone "$dir" --arg rule "$rule" --arg base "$base" \
-        --argjson closed "$closed" \
-        '.[] | select(.number as $n | $closed | index($n) | not)
+        --argjson prs "$prs" \
+        'def closes($n): (.closingIssuesReferences // [])
+           | any(.number == $n
+                 and ((.repository.owner.login + "/" + .repository.name) | ascii_downcase)
+                     == ($repo | ascii_downcase));
+         def mentions($n): (.body // "") | test("(^|[^A-Za-z0-9_/])#\($n)\\b");
+         .[] | .number as $n
+         | select([$prs[] | closes($n) or mentions($n)] | any | not)
          | {repo: $repo, number, title, url, clone: $clone, rule: $rule,
             base: (if $base == "" then null else $base end)}' <<<"$issues"
     done | jq -s .
