@@ -71,7 +71,7 @@ Link every started session to the user as `[title](#<local_ id>)`.
 
 Start the first batch (up to 2) in the same turn the user confirmed. Later starts need a user turn: the app refuses a session start in another folder on a turn that a `<side-sessions-event>` began, and stops waking this session after several events in a row with no user message.
 
-So on each `<side-sessions-event>`, start nothing. Report in one or two lines which reviews finished and which PRs still wait, then call `mcp__ccd_turn__wrap_up` with the ask "Start the next reviews?" and a first button labelled "Start next". On the user's click, start the next waiting PRs, in queue order, up to the cap of 2 working and 1 per repo.
+So on each `<side-sessions-event>`, start nothing. Report in one or two lines which reviews finished and which PRs still wait. While PRs still wait, send one `PushNotification` naming them (the `wrap_up` box does not reach the user's phone), then call `mcp__ccd_turn__wrap_up` with the ask "Start the next reviews?" and a first button labelled "Start next". On the user's click, start the next waiting PRs, in queue order, up to the cap of 2 working and 1 per repo.
 
 A child waiting for the user's yes to post is not finished and keeps its slot. Say so in one line ("waiting for your OK in [title](#id)").
 
