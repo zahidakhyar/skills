@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Tests for skills/autopilot/scripts/host_gate.sh
+# Tests for skills/deliver/scripts/host_gate.sh
 set -euo pipefail
 
-gate="$(cd "$(dirname "$0")/../.." && pwd)/skills/autopilot/scripts/host_gate.sh"
+gate="$(cd "$(dirname "$0")/../.." && pwd)/skills/deliver/scripts/host_gate.sh"
 fails=0
 
 check() {

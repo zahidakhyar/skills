@@ -46,14 +46,14 @@ A token starting with `--` is a flag; the one remaining token is the PR ref (num
 7. **Back-merge** — if base is `main` and a `dev` branch exists: `git merge-tree --write-tree origin/dev origin/main`, then compare its first line with `git rev-parse origin/dev^{tree}`. Equal → dev is not behind (merge or squash commits from a release do not count). Different → report "main has changes that dev does not have yet" plus `git log --no-merges --oneline origin/dev..origin/main` as information (it may include release squash commits); do not merge yourself. The user decides.
 
 8. **Next** — read-only, runs even with `--dry-run`. Collect candidates in the repo steps 1–7 worked on:
-   - **Autopilot** — `bash ${CLAUDE_SKILL_DIR}/../autopilot/scripts/run_dir.sh --find <N>` exits 0 and that folder's `state.json` has a `phase` other than `done` → candidate "`/autopilot continue <N>`": dev E2E for this PR is still pending.
+   - **Deliver** — `bash ${CLAUDE_SKILL_DIR}/../deliver/scripts/run_dir.sh --find <N>` exits 0 and that folder's `state.json` has a `phase` other than `done` or `dev-testing` → candidate "`/deliver continue <N>`": dev E2E for this PR is still pending.
    - **Plan** — `grep -c -- '- \[ \]' docs/superpowers/plans/*.md` (missing dir → skip). A plan whose title or filename matches this PR (head branch, PR title) and still has unchecked tasks → candidate "skipped step": list the unchecked task titles. Other plans with unchecked tasks → candidate "next plan", oldest file first. A spec in `docs/superpowers/specs/` whose phases have no plan file yet → candidate "plan not written".
    - **Session** — what this conversation left open and no other source records: work the user deferred ("later", "after this", "after merge", in any language); follow-ups you named in replies or `wrap_up` recaps, and items reported as not done or not verified; `start_session` cards proposed but not started. When `/merged` runs in a session other than the one that built the PR, search that session instead: `search_session_transcripts` with the PR number and head branch (desktop app only; tool missing → skip this source and say so in one line). Drop any item a later message or this PR already settled.
    - **Follow-up** — `gh api repos/{owner}/{repo}/pulls/<N>/comments --jq '.[] | select(.body | test("^\\*\\*(Low|Pre-existing)\\*\\*")) | {path, line, body}'`. Keep only items no open issue references yet (`gh issue list --search "<path>" --state open`).
    - **Release** — base is `dev` → `git rev-list --count origin/main..origin/dev`; non-zero → candidate "`/release`" with the count.
    - **Issue** — `gh issue list --assignee @me --state open --limit 5 --json number,title,labels`, excluding issues step 6 just closed.
 
-   Pick exactly one recommendation, in this priority: autopilot > skipped step > deferred by the user > next plan > plan not written > release > follow-up (session or review) > issue.
+   Pick exactly one recommendation, in this priority: deliver > skipped step > deferred by the user > next plan > plan not written > release > follow-up (session or review) > issue.
 
 
 ## Output

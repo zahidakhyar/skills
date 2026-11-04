@@ -48,7 +48,7 @@ if [ -n "$workflow" ] && [ -z "$repo" ]; then
   exit 2
 fi
 
-poll="${AUTOPILOT_POLL_SEC:-30}"
+poll="${DELIVER_POLL_SEC:-30}"
 deadline=$(( $(date +%s) + timeout_min * 60 ))
 
 same_sha() {

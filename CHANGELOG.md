@@ -4,6 +4,14 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Changed
+
+- `autopilot` is renamed to `deliver` (`/deliver <task>`, `/deliver continue [PR]`). Runs under `.autopilot/` are still found. Install, tests, build and the local E2E now run one at a time across the machine (`heavy.sh`).
+
+### Added
+
+- `autopilot`: a coordinator that picks up issues by a per-repo rule (`## Pickup` in `.claude/autopilot.md`), review requests and Slack mentions, and starts one session per item. Slack replies are drafts until you approve them.
+
 ## [0.3.0] - 2026-11-03
 
 ### Added

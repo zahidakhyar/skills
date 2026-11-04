@@ -69,7 +69,8 @@ Plugin skills are namespaced: `/zahidakhyar-skills:ship`, `/zahidakhyar-skills:p
 | [`merged`](#merged) | A PR was merged and the local leftovers need cleaning |
 | [`release`](#release) | Cut a new version of a JS/TS project |
 | [`orchestrate`](#orchestrate) | Build one or more implementation plans in separate sessions |
-| [`autopilot`](#autopilot) | One task end to end, with E2E proof locally and on dev |
+| [`deliver`](#deliver) | One task end to end, with E2E proof locally and on dev |
+| [`autopilot`](#autopilot) | Your assistant: picks up issues, review requests and Slack mentions, one session each |
 | [`learned`](#learned) | Save what this session taught Claude to memory |
 
 The first five form one PR loop:
@@ -236,18 +237,18 @@ sequenceDiagram
 
 Works only in the Claude desktop app's Code tab, which provides the session tools.
 
-### autopilot
+### deliver
 
 One task carried to evidence: pass criteria, build, local E2E, PR, and after you merge, the same E2E scenarios on dev.
 
 ```
-/zahidakhyar-skills:autopilot <task | #issue | issue URL>
-/zahidakhyar-skills:autopilot continue [PR]
+/zahidakhyar-skills:deliver <task | #issue | issue URL>
+/zahidakhyar-skills:deliver continue [PR]
 ```
 
-- Phase 1 writes 3–7 pass criteria and one scenario per criterion, builds with TDD in its own worktree under `.worktrees/` (your checkout, uncommitted files and running dev server stay untouched; the local run gets its own port and database), then runs every scenario locally (Playwright via the `playwright-cli` skill for web, HTTP calls for APIs). Evidence goes to `.autopilot/<date>-<slug>/` in the main checkout, excluded from git.
+- Phase 1 writes 3–7 pass criteria and one scenario per criterion, builds with TDD in its own worktree under `.worktrees/` (your checkout, uncommitted files and running dev server stay untouched; the local run gets its own port and database), then runs every scenario locally (Playwright via the `playwright-cli` skill for web, HTTP calls for APIs). Evidence goes to `.deliver/<date>-<slug>/` in the main checkout, excluded from git.
 - The app won't start locally → stops before `ship`, with no PR or draft PR, and names what is missing. Otherwise it runs `ship --auto-fix`; the PR's Test plan lists each local scenario.
-- The merge is yours. Tell Claude it is merged and give the dev URL (`merged` also suggests `/autopilot continue <PR>`). Phase 2 waits for the merge commit to be live (`/version` endpoint, GitHub Actions, Railway, or the Azure portal through Chrome), reruns the scenarios on dev, and comments the results on the PR.
+- The merge is yours. Tell Claude it is merged and give the dev URL (`merged` also suggests `/deliver continue <PR>`). Phase 2 waits for the merge commit to be live (`/version` endpoint, GitHub Actions, Railway, or the Azure portal through Chrome), reruns the scenarios on dev, and comments the results on the PR.
 - Logs in on dev only when the hostname has a test label (`dev`, `staging`, `test`, `qa`, `sandbox`, `preview`), with test accounts from the repo's seed or fixtures. Never touches prod, never merges.
 - Every phase ends with the same five lines:
 
@@ -258,6 +259,34 @@ Local: <n>/<N> pass
 Dev: <n>/<N> pass @ <host> <sha7> | pending merge
 Evidence: <path to report.md>
 ```
+
+- Install, tests, build and the local E2E run one at a time across the whole machine (a lock in `~/.local/state`), so parallel sessions don't freeze a small laptop.
+- Was called `autopilot` up to v0.3.0. Runs started under `.autopilot/` are still found.
+
+### autopilot
+
+Your assistant. One coordinator session watches your queues and starts one session per item, so you can spend your time writing the next issues.
+
+```
+/zahidakhyar-skills:autopilot [--root <dir>] [--every 10m] [--max 4] [--no-slack] [--dry-run]
+```
+
+- **Issues** come from a rule per repo, in `.claude/autopilot.md`:
+
+  ```markdown
+  ## Pickup
+  rule: assignee:@me            # team repo
+  # rule: label:ready-for-agent # solo repo
+  base: dev                     # optional
+  ```
+
+  Each issue goes to its own `deliver` session. Repos without the section are not watched for issues.
+- **Review requests** go to `pr-review` / `recheck` sessions, as in `review-queue`.
+- **Slack mentions** are classified. Status replies (`[Autopilot] Sudah direview …`, `[Autopilot] Diambil …`) are drafted and sent only after you approve the exact text. Questions and decisions are passed to you. A Slack message never starts work by itself.
+- Up to `--max` sessions code in parallel; sessions waiting on you don't count. Heavy commands still run one at a time.
+- `/autopilot` starts the first batch right away. Later checks (every `--every`) can't start sessions on their own, so they notify you and ask "Start these?".
+- After a `deliver` PR is merged it asks for the dev URL and continues that session's dev E2E.
+- Desktop app only. It runs while the app is open; nothing runs in the cloud.
 
 ### learned
 
@@ -285,7 +314,7 @@ The skills read their conventions from the repo they run in. None of these files
 | `package.json` scripts, `.github/workflows/*.yml` | `ship`, `pr-review`, `recheck` | Source of the typecheck, lint and test commands. A green CI check that already runs them is cited instead of re-run |
 | `dev` / `develop` branch | `ship`, `orchestrate` | Default PR target when present |
 | `CHANGELOG.md` | `release` | Updated on each release when present |
-| `.claude/autopilot.md` | `autopilot` | Local start command, dev URL hint, deploy signal, test-account source. Drafted on the first run and committed in that PR |
+| `.claude/autopilot.md` | `deliver`, `autopilot` | Local start command, dev URL hint, deploy signal, test-account source (drafted by `deliver` on its first run and committed in that PR). The `## Pickup` section opts the repo into `autopilot` |
 
 ## Requirements
 
@@ -298,7 +327,7 @@ Optional plugins. The skills skip the step when the plugin is missing:
 |---|---|---|
 | `humanizer` | `pr-review`, `release` | Rewriting review and PR prose so it reads naturally |
 | `impeccable` | `pr-review` | UI audit on frontend diffs |
-| `superpowers` | `orchestrate`, `autopilot` | Plan execution inside builder sessions; TDD during the build |
+| `superpowers` | `orchestrate`, `deliver` | Plan execution inside builder sessions; TDD during the build |
 | `anthropic-skills` | `learned` | `/learned consolidate` |
 
 `code-review` and `security-review` are built into Claude Code.
