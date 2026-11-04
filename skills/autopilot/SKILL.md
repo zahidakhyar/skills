@@ -36,7 +36,7 @@ rule: label:ready-for-agent   # solo repo
 base: dev                     # optional; deliver reads it
 ```
 
-No section → no issues from that repo. Review requests still count there. Never add a `## Pickup` section yourself: which repos are watched is the user's choice.
+A clone without its own section inherits the nearest one above it, up to `--root`. So one file at a workspace root that holds several clones (an umbrella folder with one git repo per app) covers all of them, and a clone with its own `## Pickup` overrides it. The other config sections (start command, deploy signal) stay per clone. No section anywhere up to `--root` → no issues from that repo. Review requests still count there. Never add a `## Pickup` section yourself: which repos are watched is the user's choice.
 
 ## State
 
@@ -76,7 +76,7 @@ Per item, `mcp__ccd_session__start_session` with `initiation: "user_asked"`, `co
 
 | Kind | `name` (≤24 chars) | `title` | `prompt` |
 |---|---|---|---|
-| Issue | `ap-<repo name>-<N>` (trim the repo name, never the number, to fit 24) | `Deliver <repo name>#<N>: <title>` | `Invoke the deliver skill with argument <issue url>.` + the common lines |
+| Issue | `ap-<repo name>-<N>` (trim the repo name, never the number, to fit 24) | `Deliver <repo name>#<N>: <title>` | `Invoke the deliver skill with argument <issue url>.` + `Base branch: <base>.` when `issues.sh` gave a `base` (it may come from a workspace-root config the clone cannot see) + the common lines |
 | Review | `rv-<repo name>-<N>` | `Review`/`Recheck <repo name>#<N>: <title>` | `Invoke the <pr-review\|recheck> skill with argument <pr url>.` + the common lines |
 
 Common lines:
