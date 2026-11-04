@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Tests for skills/autopilot/scripts/wait_deploy.sh, with curl and gh stubbed.
+# Tests for skills/deliver/scripts/wait_deploy.sh, with curl and gh stubbed.
 set -euo pipefail
 
-script="$(cd "$(dirname "$0")/../.." && pwd)/skills/autopilot/scripts/wait_deploy.sh"
+script="$(cd "$(dirname "$0")/../.." && pwd)/skills/deliver/scripts/wait_deploy.sh"
 bin="$(mktemp -d)"
 trap 'rm -rf "$bin"' EXIT
 fails=0
@@ -17,7 +17,7 @@ cat > "$bin/gh" <<'EOF'
 printf '%s' "${FAKE_GH_BODY:-[]}"
 EOF
 chmod +x "$bin/curl" "$bin/gh"
-export PATH="$bin:$PATH" AUTOPILOT_POLL_SEC=0
+export PATH="$bin:$PATH" DELIVER_POLL_SEC=0
 
 # check <want-exit> <want-line-prefix> -- <args...>
 check() {

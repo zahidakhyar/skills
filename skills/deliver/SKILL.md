@@ -1,9 +1,9 @@
 ---
-name: autopilot
-description: Use when the user hands over one task to be finished end to end with real E2E proof, locally and again on dev after merge — `/autopilot <task | #issue | issue URL>`, `/autopilot continue [PR]`, "autopilot", "kerjakan sampai beres", "sampai test E2E", "jangan bilang selesai sebelum dites", "sudah merge, cek di dev", "sudah merge, test di dev". Not for several repos or plans at once (that is `orchestrate`).
+name: deliver
+description: Use when the user hands over one task to be finished end to end with real E2E proof, locally and again on dev after merge — `/deliver <task | #issue | issue URL>`, `/deliver continue [PR]`, "deliver", "kerjakan sampai beres", "sampai test E2E", "jangan bilang selesai sebelum dites", "sudah merge, cek di dev", "sudah merge, test di dev". Not for several repos or plans at once (that is `orchestrate`).
 ---
 
-# Autopilot
+# Deliver
 
 One task, carried to evidence. Phase 1 goes from the task to an open PR with local E2E proof. Phase 2 runs after the user merges and repeats the same scenarios on dev. The merge itself is always the user's.
 
@@ -18,7 +18,7 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 
 ## Run folder
 
-`bash ${CLAUDE_SKILL_DIR}/scripts/run_dir.sh <slug>` creates it in the main checkout and excludes it from git. Phase 2 finds it with `run_dir.sh --find <pr>`, a blocked run with `run_dir.sh --branch <branch>` or `--blocked`. Contents:
+`bash ${CLAUDE_SKILL_DIR}/scripts/run_dir.sh <slug>` creates it in the main checkout (`.deliver/`) and excludes it from git. Runs started before this skill was renamed from `autopilot` live under `.autopilot/`; the search options find them too. Phase 2 finds it with `run_dir.sh --find <pr>`, a blocked run with `run_dir.sh --branch <branch>` or `--blocked`. Contents:
 
 | File | Written in | Holds |
 |---|---|---|
@@ -34,13 +34,13 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 2. **Repo config.** Read `.claude/autopilot.md`. Missing → draft it from [config-template.md](references/config-template.md), filled from `package.json` scripts, `docker-compose*`, `.env.example`, `.github/workflows`, and `railway.json`/`railway.toml`. It is committed with this PR.
 3. **Build, always in a worktree.** The main checkout is the user's: its branch, uncommitted files and running processes stay untouched.
    - This session already runs in a worktree (`git rev-parse --git-dir` differs from `--git-common-dir`) → use it.
-   - Otherwise, from the main checkout root: `git check-ignore -q .worktrees/ || echo '.worktrees/' >> .git/info/exclude`, then `git fetch origin <base>` and `git worktree add -b <branch> .worktrees/autopilot-<slug> origin/<base>`. Base: `dev` → `develop` → the default branch, the first one that exists on the remote. Work only inside that path from now on (`cd` there, or `git -C`).
+   - Otherwise, from the main checkout root: `git check-ignore -q .worktrees/ || echo '.worktrees/' >> .git/info/exclude`, then `git fetch origin <base>` and `git worktree add -b <branch> .worktrees/deliver-<slug> origin/<base>`. Base: `dev` → `develop` → the default branch, the first one that exists on the remote. Work only inside that path from now on (`cd` there, or `git -C`).
    - Copy the gitignored env files (`.env`, `.env.local`, `.env.*.local`) from the main checkout, then install dependencies with the repo's package manager.
    - Write `branch` and `worktree` (absolute path) into `state.json`.
    - Then build, following the repo's own workflow and stack skills. TDD for logic (superpowers:test-driven-development when that plugin is installed).
 4. **Local E2E.** Start the app per config, from the worktree, isolated from whatever the user is running:
    - Port: check what listens (`lsof -iTCP -sTCP:LISTEN -P`) and start on a free port. `{BASE_URL}` follows that port.
-   - Database: never migrate or seed a database the user's own app uses. Give the run its own database or compose project (`DATABASE_URL=…/<db>_autopilot`, or `docker compose -p autopilot-<slug>` with its ports remapped). The env files copied in step 3 still point at the user's database and port: rewrite them in the worktree before any migrate or seed. When it can't be separated safely, treat it as "the app won't start" below. When step 5 is finished, drop the run's database or compose project; a blocked run keeps it for the resume.
+   - Database: never migrate or seed a database the user's own app uses. Give the run its own database or compose project (`DATABASE_URL=…/<db>_deliver`, or `docker compose -p deliver-<slug>` with its ports remapped). The env files copied in step 3 still point at the user's database and port: rewrite them in the worktree before any migrate or seed. When it can't be separated safely, treat it as "the app won't start" below. When step 5 is finished, drop the run's database or compose project; a blocked run keeps it for the resume.
    - Never stop, restart or reuse the user's processes. At the end, stop only what this run started.
 
    Prepare what the scenarios need through the project's own means: `docker compose up` for its DB, the migrate and seed scripts, `.env` copied from `.env.example` with local values only. Test accounts come only from the seed, fixture or example-config files; when none exist, add one to the seed in this branch. Then run every scenario: web through `playwright-cli`, APIs through HTTP calls, other effects through the nearest real runner (CLI, read-only DB query, log or queue check). Commit the work before the run, so the evidence belongs to one SHA. Store the evidence under `local/` and write that HEAD as `tested_sha`. A failing scenario → fix, commit, rerun; after 3 rounds on the same scenario, stop and report. Every scenario must pass before step 5.
@@ -63,7 +63,7 @@ P2. **Dev host gate.** The dev URL must come from the user's own message in this
 
 P3. **Wait for the deploy.** Follow [deploy-signals.md](references/deploy-signals.md). Wait with Bash `run_in_background` (one notification), never by polling the PR, ScheduleWakeup or cron. `FAILED` or `TIMEOUT` → report and stop; never test old code.
 
-P4. **Dev E2E.** Run the same `scenarios.md` with `{BASE_URL}` set to the dev host. Name any data you create `autopilot-<sha7>-…`, and delete it at the end when the app offers a way to; list what is left in the report. Payment or money-moving steps on a hosted env → `SKIPPED: payment on hosted env`. Evidence goes under `dev/`.
+P4. **Dev E2E.** Run the same `scenarios.md` with `{BASE_URL}` set to the dev host. Name any data you create `deliver-<sha7>-…`, and delete it at the end when the app offers a way to; list what is left in the report. Payment or money-moving steps on a hosted env → `SKIPPED: payment on hosted env`. Evidence goes under `dev/`.
 
 P5. **Report.** When `tested_sha` differs from `headRefOid` (Auto-fix or review pushed after local E2E) or is `unknown`, add `local tested <sha7|unknown>` to the Dev line. Then:
    - Write `report.md`, send it with `SendUserFile`.
@@ -89,7 +89,7 @@ Evidence: <path to report.md>
 
 ## GitHub writes
 
-Typing `/autopilot` is the user's go-ahead for the writes this flow makes, with no further confirmation: the push and PR through `ship`, the Test plan edit in step 5, marking the PR draft when a rerun fails, and the dev result comment in P5. Anything else that posts, merges or deletes on GitHub asks first.
+Typing `/deliver` is the user's go-ahead for the writes this flow makes, with no further confirmation: the push and PR through `ship`, the Test plan edit in step 5, marking the PR draft when a rerun fails, and the dev result comment in P5. Anything else that posts, merges or deletes on GitHub asks first.
 
 ## Never
 

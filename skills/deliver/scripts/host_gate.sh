@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Decide whether a hosted URL is a test environment autopilot may log in to.
+# Decide whether a hosted URL is a test environment deliver may log in to.
 # A host qualifies when one whole token of its name (split on "." and "-")
 # is a test label. The TLD and shared hosting suffixes (pages.dev, vercel.app,
 # up.railway.app, ...) are removed first: they name the platform, not the env.
