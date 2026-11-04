@@ -50,7 +50,7 @@ Single repo → skip this step.
 
 ### 3. Spawn the children
 
-Default: children in parallel, since the locked contract lets each side build against it, but **at most 2 working at once**. The limit is local RAM (8 GB): agent reasoning runs remotely, while each child's `tsc`, test runs, and builds run on this machine and can take 1–2 GB each. With 3+ repos, the rest wait and start as a slot frees up. Run one after another only when one child needs the other's output to exist (a client generated from the backend's OpenAPI file, a migration the other side queries). Then spawn the dependent child after the first reports DONE.
+Default: children in parallel, since the locked contract lets each side build against it, but **at most 2 working at once**. The limit is local RAM: agent reasoning runs remotely, while each child's `tsc`, test runs, and builds run on this machine and can take 1–2 GB each. With 3+ repos, the rest wait and start as a slot frees up. Run one after another only when one child needs the other's output to exist (a client generated from the backend's OpenAPI file, a migration the other side queries). Then spawn the dependent child after the first reports DONE.
 
 First `mcp__ccd_session_mgmt__get_session("self")` → the coordinator's `local_…` id, which every builder prompt needs, and its model.
 
@@ -171,7 +171,7 @@ No push, no merge, no PR, no edits outside the plan and the coordinator's REVIEW
 | Prompt says "the plan above" or "as discussed" | Children never saw this conversation; name every path and value |
 | Trusting a DONE note | Read the diff before reporting |
 | Two children writing in the same repo | One child per repo; run same-repo plans in sequence |
-| More than 2 children building or reviewing at once | Cap at 2; local `tsc`/tests across 3+ repos can exhaust 8 GB RAM |
+| More than 2 children building or reviewing at once | Cap at 2; local `tsc`/tests across 3+ repos can exhaust a small machine's RAM |
 | Trusting REVIEWED / FIXED without the fix diff | A child can fix past High/Medium or past the plan; check the diff stays in scope |
 | Sending `/ship` without `--reviewed` | The branch gets a second full review on top of step 5 |
 | Looping forever on a stubborn finding | Stop after the round cap and report it; it is likely a plan or contract issue |

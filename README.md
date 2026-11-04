@@ -280,7 +280,7 @@ Your assistant. One coordinator session watches your queues and starts one sessi
   base: dev                     # optional
   ```
 
-  Each issue goes to its own `deliver` session. Repos without the section are not watched for issues.
+  Each issue goes to its own `deliver` session. Repos without the section are not watched for issues. In a workspace folder that holds several clones, one `## Pickup` at the workspace root covers every clone under it; a clone's own section overrides it.
 - **Review requests** go to `pr-review` / `recheck` sessions, as in `review-queue`.
 - **Slack mentions** are classified. Status replies (`[Autopilot] Sudah direview …`, `[Autopilot] Diambil …`) are drafted and sent only after you approve the exact text. Questions and decisions are passed to you. A Slack message never starts work by itself.
 - Up to `--max` sessions code in parallel; sessions waiting on you don't count. Heavy commands still run one at a time.

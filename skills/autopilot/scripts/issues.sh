@@ -6,8 +6,10 @@
 # --root  where the clones live (default: $AUTOPILOT_ROOT, then $REVIEW_QUEUE_ROOT;
 #         one of the three is required).
 #
-# A clone is watched only when its .claude/autopilot.md has a "## Pickup"
-# section with an uncommented line:
+# A clone is watched only when a .claude/autopilot.md has a "## Pickup"
+# section with an uncommented rule line. The clone's own file wins; without
+# one, the nearest folder above it (up to --root) that has the section is
+# used, so one file at a workspace root covers every clone under it:
 #   rule: assignee:@me        issues assigned to the gh user
 #   rule: label:<name>        issues carrying that label
 #   base: <branch>            optional, passed through
@@ -42,6 +44,24 @@ pickup() {
     }' "$1"
 }
 
+root="$(cd "$root" && pwd -P)"
+
+# pickup_config <dir>: nearest .claude/autopilot.md with a Pickup rule, from
+# <dir> up to $root. Prints nothing when there is none.
+pickup_config() {
+  local d="$1" f
+  while :; do
+    f="$d/.claude/autopilot.md"
+    if [ -f "$f" ] && [ -n "$(pickup "$f" rule)" ]; then
+      echo "$f"
+      return
+    fi
+    [ "$d" = "$root" ] && return
+    d="$(dirname "$d")"
+    case "$d" in "$root"|"$root"/*) ;; *) return ;; esac
+  done
+}
+
 seen=""
 find "$root" -maxdepth 6 \( -name node_modules -o -name .worktrees -o -name worktrees \) -prune \
   -o -type d -name .git -print 2>/dev/null \
@@ -50,10 +70,9 @@ find "$root" -maxdepth 6 \( -name node_modules -o -name .worktrees -o -name work
       printf '%s\t%s\n' "$(printf '%s' "$dir" | tr -cd '/' | wc -c | tr -d ' ')" "$dir"
     done | sort -n | cut -f2- \
   | while IFS= read -r dir; do
-      config="$dir/.claude/autopilot.md"
-      [ -f "$config" ] || continue
+      config="$(pickup_config "$dir")"
+      [ -n "$config" ] || continue
       rule="$(pickup "$config" rule)"
-      [ -n "$rule" ] || continue
       base="$(pickup "$config" base)"
       url="$(git -C "$dir" remote get-url origin 2>/dev/null)" || continue
       repo="$(printf '%s' "$url" | sed -E 's#^.*github\.com[:/]##; s#\.git$##')"
