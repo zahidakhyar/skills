@@ -71,7 +71,7 @@ Next: <recommendation> — <reason, under 12 words>
 Others: <at most 2 other candidates, one line each>
 ```
 
-No candidates → only `Next: no tracked work left.` When the host has a next-step box (`wrap_up`), always call it with `ask` = the recommendation, `actions[0]` = do it, and `actions[1]` = the top `Others` item; a recap-only `wrap_up` is wrong whenever a candidate exists.
+No candidates → only `Next: no tracked work left.` Whenever a candidate exists, ask with `AskUserQuestion` (it reaches the user's phone) after the output: first option = the recommendation, labelled "(Recommended)"; second = the top `Others` item, when there is one. `wrap_up`, when the host has it, carries the recap only.
 
 ## Never
 
