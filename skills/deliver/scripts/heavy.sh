@@ -13,13 +13,22 @@
 #
 # HEAVY_LOCK      lock path (default ${XDG_STATE_HOME:-$HOME/.local/state}/claude-heavy.lock)
 # HEAVY_POLL_SEC  seconds between attempts (default 5)
+# HEAVY_WAIT_MAX  give up waiting after this many seconds, exit 124 (default 7200)
+#
+# A command run under the lock sees HEAVY_LOCK_HELD; a nested heavy.sh call
+# (e.g. an install inside an E2E block) then runs straight through.
 set -euo pipefail
 
 [ $# -gt 0 ] || { echo "usage: heavy.sh <command> [args...]" >&2; exit 2; }
 
+if [ -n "${HEAVY_LOCK_HELD:-}" ]; then
+  exec "$@"
+fi
+
 lock="${HEAVY_LOCK:-${XDG_STATE_HOME:-$HOME/.local/state}/claude-heavy.lock}"
 reap="$lock.reap"
 poll="${HEAVY_POLL_SEC:-5}"
+wait_max="${HEAVY_WAIT_MAX:-7200}"
 grace=10 # seconds a lock or reap dir without info may stay before it counts as abandoned
 mkdir -p "$(dirname "$lock")"
 
@@ -47,19 +56,29 @@ is_stale() {
 }
 
 take_over() {
+  local a
   if ! mkdir "$reap" 2>/dev/null; then
-    a="$(age "$reap")" && [ "$a" -gt "$grace" ] && rmdir "$reap" 2>/dev/null
+    # Another waiter is reaping; clear its guard only if it was abandoned.
+    if a="$(age "$reap")" && [ "$a" -gt "$grace" ]; then
+      rmdir "$reap" 2>/dev/null || true
+    fi
     return 0
   fi
-  is_stale && rm -rf "$lock"
-  rmdir "$reap"
+  if is_stale; then rm -rf "$lock"; fi
+  rmdir "$reap" 2>/dev/null || true
 }
 
 me_start="$(started "$$")"
 announced=""
+waited_since=$(date +%s)
 until mkdir "$lock" 2>/dev/null; do
+  if [ $(( $(date +%s) - waited_since )) -ge "$wait_max" ]; then
+    echo "gave up waiting for heavy lock after ${wait_max}s: $lock" >&2
+    exit 124
+  fi
   if is_stale; then
     take_over
+    if [ -d "$lock" ]; then sleep "$poll"; fi
     continue
   fi
   if [ -z "$announced" ]; then
@@ -90,7 +109,7 @@ trap on_signal INT TERM
 
 # Background + wait, so a TERM to this script is handled at once instead of
 # after the command finishes.
-"$@" &
+HEAVY_LOCK_HELD=$$ "$@" &
 child=$!
 rc=0
 wait "$child" || rc=$?

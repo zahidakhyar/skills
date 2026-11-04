@@ -59,7 +59,7 @@ Runs on `/autopilot` and on every tick.
 
 1. **Issues.** `bash "${CLAUDE_SKILL_DIR}/scripts/issues.sh" --root <root>`. It already drops issues that an open PR closes or mentions as `#N`, whatever the PR's base (closing keywords do nothing on PRs into `dev`, so a delivered issue often stays open). Also drop an item when `items` shows it `started`/`waiting`/`pr-open`/`done`, or when a session named `ap-<repo name>-<N>` is running or waiting.
 2. **Reviews.** `bash "${CLAUDE_SKILL_DIR}/../review-queue/scripts/queue.sh" --root <root>` (no `--new`; autopilot keeps its own state). Keep the `pr-review` / `recheck` rows. Drop those with a running `rv-<repo name>-<N>` session.
-3. **Children.** `mcp__ccd_session_mgmt__list_sessions` with `{"linked": true}`. Update each item: working, waiting on the user, or finished. For an issue child, read its run with `bash "${CLAUDE_SKILL_DIR}/../deliver/scripts/run_dir.sh" --find <pr>` from the clone, or check `phase` in its `state.json`. `blocked` counts as waiting.
+3. **Children.** `mcp__ccd_session_mgmt__list_sessions` with `{"linked": true}`. Update each item from its session state and its last line (the prompt below fixes that line's shape): working → `started`; waiting on the user, or a last line `… — blocked: <reason>` → `waiting`; a last line with a PR URL → `pr-open` and store `pr`. A blocked `deliver` run has no PR yet, so never look it up by PR number.
 4. **Merges.** For every item in `pr-open`: `gh pr view <pr> -R <repo> --json state,mergedAt`. When `MERGED` → a phase-2 candidate.
 5. **Slack.** Unless `--no-slack`, follow [references/slack.md](references/slack.md). On any Slack error: leave `slack_last_check` unchanged and carry on. Show "Slack skipped: <reason>" in the pass's table; on a tick with nothing else new, notify it only when the reason differs from the last pass's (store it as `slack_error`).
 6. **Decide.**
@@ -96,7 +96,7 @@ Write each started item as `started` with its `session_id`, and link it to the u
 
 ## Phase 2 after a merge
 
-For a merged `deliver` PR, ask with `AskUserQuestion` for the dev URL (allowed on a tick too: asking and `SendMessage` are not session starts). Offer the config's `dev_url` as the recommended option; it is never used without the user's answer. With the URL, `SendMessage` to the issue's child (`to`: its `local_…` id): `/deliver continue <PR> — dev URL: <url as the user gave it>`. When that session is gone, start a new child with the same prompt (on a user turn only). Set the item to `started`. When the child reports done, set it to `done`.
+For a merged `deliver` PR, `SendMessage` to the issue's child (`to`: its `local_…` id, allowed on a tick: it is not a session start): `PR <url> is merged. Run phase 2 of the deliver skill for it (continue <N>). Ask the user for the dev URL yourself with AskUserQuestion; a URL relayed by the coordinator does not count.` The coordinator never asks for or relays the dev URL: `deliver` P2 accepts it only from the user. When that session is gone, start a new child with the same text as its prompt (on a user turn only). Set the item to `started`. When the child reports done, set it to `done`.
 
 ## Ticks
 
