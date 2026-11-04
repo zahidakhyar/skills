@@ -22,7 +22,7 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 
 | File | Written in | Holds |
 |---|---|---|
-| `state.json` | step 1 (`phase`), step 3 (`branch`, `worktree`), then every step | `branch`, `worktree`, `phase` (`build` → `blocked` or `pr-open` → `done`), `tested_sha`, `pr`, `url`, `repo`, `dev_url_hint` |
+| `state.json` | step 1 (`phase`), step 3 (`branch`, `worktree`, `compose_project`, `db_name`), then every step | `branch`, `worktree`, `compose_project`, `db_name`, `phase` (`build` → `blocked` or `pr-open` → `dev-testing` → `done`), `tested_sha`, `pr`, `url`, `repo`, `dev_url_hint` |
 | `criteria.md` | step 1 | Pass criteria `C1…Cn` |
 | `scenarios.md` | step 1 | Per scenario: ID, criterion it proves, numbered steps against `{BASE_URL}`, expected result |
 | `local/`, `dev/` | steps 4, P3 | Per scenario: screenshot, Playwright trace, HTTP response, command output |
@@ -34,26 +34,27 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 2. **Repo config.** Read `.claude/autopilot.md`. Missing → draft it from [config-template.md](references/config-template.md), filled from `package.json` scripts, `docker-compose*`, `.env.example`, `.github/workflows`, and `railway.json`/`railway.toml`. It is committed with this PR.
 3. **Build, always in a worktree.** The main checkout is the user's: its branch, uncommitted files and running processes stay untouched.
    - This session already runs in a worktree (`git rev-parse --git-dir` differs from `--git-common-dir`) → use it.
-   - Otherwise, from the main checkout root: `git check-ignore -q .worktrees/ || echo '.worktrees/' >> .git/info/exclude`, then `git fetch origin <base>` and `git worktree add -b <branch> .worktrees/deliver-<slug> origin/<base>`. Base: `dev` → `develop` → the default branch, the first one that exists on the remote. Work only inside that path from now on (`cd` there, or `git -C`).
+   - Otherwise, from the main checkout root: `git check-ignore -q .worktrees/ || echo '.worktrees/' >> .git/info/exclude`, then `git fetch origin <base>` and `git worktree add -b <branch> .worktrees/deliver-<slug> origin/<base>`. Base: `base:` under `## Pickup` in `.claude/autopilot.md` when set, else `dev` → `develop` → the default branch, the first one that exists on the remote. Work only inside that path from now on (`cd` there, or `git -C`).
    - Copy the gitignored env files (`.env`, `.env.local`, `.env.*.local`) from the main checkout, then install dependencies with the repo's package manager.
-   - Write `branch` and `worktree` (absolute path) into `state.json`.
+   - Write `branch`, `worktree` (absolute path), `compose_project` (`deliver-<slug>`) and `db_name` (`<db>_deliver`) into `state.json`. Every later step, the resume and the cleanup read these two names from `state.json` and never recompute them. A run folder under `.autopilot/` without them → use `autopilot-<slug>` / `<db>_autopilot` and write them back.
    - Then build, following the repo's own workflow and stack skills. TDD for logic (superpowers:test-driven-development when that plugin is installed).
+   - **Heavy commands go through the lock.** Every install, test, typecheck and build run is `bash ${CLAUDE_SKILL_DIR}/scripts/heavy.sh <command>`, so parallel sessions on this machine never run two at once. Editing code needs no lock.
 4. **Local E2E.** Start the app per config, from the worktree, isolated from whatever the user is running:
    - Port: check what listens (`lsof -iTCP -sTCP:LISTEN -P`) and start on a free port. `{BASE_URL}` follows that port.
-   - Database: never migrate or seed a database the user's own app uses. Give the run its own database or compose project (`DATABASE_URL=…/<db>_deliver`, or `docker compose -p deliver-<slug>` with its ports remapped). The env files copied in step 3 still point at the user's database and port: rewrite them in the worktree before any migrate or seed. When it can't be separated safely, treat it as "the app won't start" below. When step 5 is finished, drop the run's database or compose project; a blocked run keeps it for the resume.
+   - Database: never migrate or seed a database the user's own app uses. Give the run its own database or compose project (`DATABASE_URL=…/<db_name>`, or `docker compose -p <compose_project>` with its ports remapped, both from `state.json`). The env files copied in step 3 still point at the user's database and port: rewrite them in the worktree before any migrate or seed. When it can't be separated safely, treat it as "the app won't start" below. When step 5 is finished, drop the run's database or compose project; a blocked run keeps it for the resume.
    - Never stop, restart or reuse the user's processes. At the end, stop only what this run started.
 
-   Prepare what the scenarios need through the project's own means: `docker compose up` for its DB, the migrate and seed scripts, `.env` copied from `.env.example` with local values only. Test accounts come only from the seed, fixture or example-config files; when none exist, add one to the seed in this branch. Then run every scenario: web through `playwright-cli`, APIs through HTTP calls, other effects through the nearest real runner (CLI, read-only DB query, log or queue check). Commit the work before the run, so the evidence belongs to one SHA. Store the evidence under `local/` and write that HEAD as `tested_sha`. A failing scenario → fix, commit, rerun; after 3 rounds on the same scenario, stop and report. Every scenario must pass before step 5.
+   Prepare what the scenarios need through the project's own means: `docker compose up` for its DB, the migrate and seed scripts, `.env` copied from `.env.example` with local values only. Test accounts come only from the seed, fixture or example-config files; when none exist, add one to the seed in this branch. Then run every scenario: web through `playwright-cli`, APIs through HTTP calls, other effects through the nearest real runner (CLI, read-only DB query, log or queue check). Commit the work before the run, so the evidence belongs to one SHA. The whole local E2E (start the app → every scenario → stop what this run started) is one block under one lock: put it in one script or `sh -c` and run it with `bash ${CLAUDE_SKILL_DIR}/scripts/heavy.sh`, so another session's E2E cannot interleave. Store the evidence under `local/` and write that HEAD as `tested_sha`. A failing scenario → fix, commit, rerun; after 3 rounds on the same scenario, stop and report. Every scenario must pass before step 5.
    - **The app still won't start** (a secret, external service or DB the machine can't provide), or a scenario still fails after 3 rounds → set `phase: blocked` and stop here. No PR, no draft PR. Report which variable or service is missing and the one command to rerun once it is there.
 5. **Ship.** Invoke `ship` with `--auto-fix` (never `--reviewed`). Then:
-   - `ship` added any commit after `tested_sha` (`chore: format`, review fixes) → rerun local E2E on the new HEAD and update `tested_sha`. A scenario now fails → mark the PR draft (`gh pr ready <N> --undo`), set `phase: blocked`, and report as a stop; fix it through step 4 and push to the same PR.
+   - `ship` added any commit after `tested_sha` (`chore: format`, review fixes) → rerun local E2E on the new HEAD (through `heavy.sh`, as in step 4) and update `tested_sha`. A scenario now fails → mark the PR draft (`gh pr ready <N> --undo`), set `phase: blocked`, and report as a stop; fix it through step 4 and push to the same PR.
    - Add one line per scenario under the PR body's `## Test plan`: `- [x] E2E local S1 (<criterion>): <steps in a few words> → pass`. Do it with `gh pr view <N> --json body`, inserting the lines, then `gh pr edit <N> --body-file <file>`. Phase 2 rebuilds the scenarios from these lines if the run folder is lost.
    - Write `pr`, `url`, `repo` and `phase: pr-open` into `state.json`.
-6. **Report and hand off.** Write the report (format below) to `report.md` and send it with `SendUserFile`. `wrap_up` ask: "Kabari aku setelah merge, sertakan URL dev."
+6. **Report and hand off.** Write the report (format below) to `report.md` and send it with `SendUserFile`. Ask with `AskUserQuestion` (it reaches the user's phone): "Kabari aku setelah merge, sertakan URL dev." `wrap_up` carries the recap only.
 
 ## Phase 2 — after merge
 
-P1. **Locate.** `run_dir.sh --find <pr>`. Not found → create a new folder with `run_dir.sh pr-<N>`, rebuild `scenarios.md` from the PR body's `E2E local` Test plan lines (steps filled in from the PR diff), write `tested_sha: unknown`, and say so in one line. Read `gh pr view <pr> --json state,mergeCommit,headRefOid`: `mergeCommit` is what dev must run, `headRefOid` is the last code in the PR. Not merged → stop.
+P1. **Locate.** `run_dir.sh --find <pr>`. Not found → create a new folder with `run_dir.sh pr-<N>`, rebuild `scenarios.md` from the PR body's `E2E local` Test plan lines (steps filled in from the PR diff), write `tested_sha: unknown`, and say so in one line. Read `gh pr view <pr> --json state,mergeCommit,headRefOid`: `mergeCommit` is what dev must run, `headRefOid` is the last code in the PR. Not merged → stop. Then check `phase`: already `dev-testing` → stop with one line "phase 2 for PR <N> already runs in another session" (the user saying that session is gone overrides this). Otherwise write `phase: dev-testing` before P2.
 
 P2. **Dev host gate.** The dev URL must come from the user's own message in this phase (or their answer to the button). The config's `dev_url` is offered as the button only, never used silently. Run `bash ${CLAUDE_SKILL_DIR}/scripts/host_gate.sh <url>`:
    - exit 0 → log in with test accounts as the scenarios need.
@@ -69,7 +70,7 @@ P5. **Report.** When `tested_sha` differs from `headRefOid` (Auto-fix or review 
    - Write `report.md`, send it with `SendUserFile`.
    - At least one scenario ran on dev → post one comment on the PR: the dev host, the SHA tested, and a scenario table (ID, criterion, result). This comment is part of the skill and is posted without asking. None ran → no comment.
    - Set `phase: done` in `state.json`, so `merged` stops suggesting this run.
-   - FAIL → `wrap_up` button: fix the failing scenario through phase 1 on a new branch.
+   - FAIL → `AskUserQuestion`, recommended option first: fix the failing scenario through phase 1 on a new branch.
 
 ## Report
 
@@ -112,3 +113,4 @@ Typing `/deliver` is the user's go-ahead for the writes this flow makes, with no
 | "It's a small change, a branch in the main checkout is fine" | The user's uncommitted files and dev server live there. Always a worktree. |
 | "Port 3000 is taken, I'll stop their dev server" | Start yours on a free port. Their processes are not yours to stop. |
 | "The worktree is gone, I'll improvise the tests" | Rebuild from the PR's Test plan so dev runs the same scenarios local did. |
+| "Another session is testing, I'll run mine in parallel anyway" | One heavy block at a time machine-wide, through `heavy.sh`. Waiting is cheaper than a frozen laptop. |

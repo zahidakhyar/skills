@@ -27,4 +27,10 @@ endpoint: GET /version → `.commit`
 
 ## notes
 - Feature flag `ORDERS_V2` must be on locally (`.env.example` has it).
+
+## Pickup
+<!-- Optional. Read by the autopilot coordinator; deliver reads only base. -->
+<!-- rule: assignee:@me          (team repo: issues assigned to you) -->
+<!-- rule: label:ready-for-agent (solo repo) -->
+<!-- base: dev -->
 ```
