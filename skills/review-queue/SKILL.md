@@ -31,15 +31,18 @@ One JSON array, one object per open PR: `repo`, `number`, `title`, `author`, `ur
 | `recheck` | Reviewed before; new commits since the `reviewed:` marker, or the branch was force-pushed |
 | `skip` | `reason` says why: no new commits since the last review, no local clone, or `pr_state.sh` failed |
 
-Empty array → say no PR is waiting on the user's review, and stop.
+Empty array → no PR is waiting on the user's review. Still run step 2: its archive sweep does not depend on the queue. Stop only when that sweep finds nothing either.
 
-## 2. Drop PRs that already have a session
+## 2. Check existing review sessions
 
-Each child is named `rv-<repo name>-<number>` (trimmed to 24 chars). Call `mcp__ccd_session_mgmt__list_sessions` and look for a session with that name or with the title from step 4. One that is still running or waiting for the user → mark the PR `skip` with reason "session already open" and link that session.
+Call `mcp__ccd_session_mgmt__list_sessions` with `limit: 100` (the default 20 misses older ones), not `linked: true`: children from an earlier run belong to another dispatcher session. A review session is one whose title matches `^(Review|Recheck) [^#]+#([0-9]+):` (the step 4 title; `[^#]+` so a `#N:` inside the PR title is not taken as the number). Find its PR from the title and `cwd`, never from `name` (trimmed to 24 chars, which can cut off the number) and never from `prState` (a review session opens no PR, so the app binds none; the app's `auto_archive_on_pr_close` setting never fires for these either).
+
+- **Open session:** one still running or waiting for the user for a PR in the queue → mark the PR `skip` with reason "session already open" and link that session.
+- **Archive sweep:** for every review session with `isRunning: false`, take the number from the title and run `cd <cwd> && gh pr view <number> --json state -q .state </dev/null`, so `gh` resolves the repo from the clone itself (SSH host aliases included). `MERGED` → add it to the archive list as `repo#number` plus the session link. Any other state, a missing `cwd` or a failed lookup → leave the session alone.
 
 ## 3. Confirm once
 
-Show the queue as one table: `repo#number` (linked to `url`), title, author, planned action or skip reason, and `draft` when `isDraft`. Then ask one question: start the sessions for every `pr-review` and `recheck` row? The user may drop rows. A draft PR is listed but starts only when the user picks it. A PR skipped for "no new commits" stays skipped: `recheck` itself stops on unchanged code.
+Show the queue as one table: `repo#number` (linked to `url`), title, author, planned action or skip reason, and `draft` when `isDraft`. A non-empty archive list from step 2 gets a second table: `repo#number`, the session link, `merged`. Then ask one question covering both: start the sessions for every `pr-review` and `recheck` row, and archive the listed sessions? The user may drop rows from either table. A draft PR is listed but starts only when the user picks it. A PR skipped for "no new commits" stays skipped: `recheck` itself stops on unchanged code.
 
 No local clone → tell the user which repo is missing and that `gh repo clone <repo>` under the root fixes it. Never clone on your own.
 
@@ -67,6 +70,8 @@ Per PR, `mcp__ccd_session__start_session`:
 
 Link every started session to the user as `[title](#<local_ id>)`.
 
+Then, per confirmed archive row, `mcp__ccd_session_mgmt__archive_session` with its `sessionId` and `reason: "<repo>#<number> merged"`. The app refuses a session that is working, pinned or open on screen; list those in one line and leave them.
+
 ## 5. Drain the queue
 
 Start the first batch (up to 2) in the same turn the user confirmed. Later starts need a user turn: the app refuses a session start in another folder on a turn that a `<side-sessions-event>` began, and stops waking this session after several events in a row with no user message.
@@ -79,7 +84,7 @@ Never answer a child's question, and never send it a "yes, post it" on the user'
 
 ## 6. Report
 
-When no child is working and the queue is empty, report one line per PR from the children's last lines: `repo#number — verdict — review URL`, plus the skipped rows with their reason. A child's note is its claim, not proof: for each one that says it posted, confirm with `gh api repos/<repo>/pulls/<number>/reviews -q '[.[] | select(.user.login == "<me>")] | last | .html_url'`.
+When no child is working and the queue is empty, report one line per PR from the children's last lines: `repo#number — verdict — review URL`, plus the skipped rows with their reason and the archived sessions (`repo#number — merged, session archived`). A child's note is its claim, not proof: for each one that says it posted, confirm with `gh api repos/<repo>/pulls/<number>/reviews -q '[.[] | select(.user.login == "<me>")] | last | .html_url'`.
 
 ## Interval mode
 
@@ -87,8 +92,9 @@ When no child is working and the queue is empty, report one line per PR from the
 
 A tick is an automated turn: the app refuses session starts on it. So a tick never starts children itself:
 1. `bash "${CLAUDE_SKILL_DIR}/scripts/queue.sh" [--team] [--root <dir>] --new "${REVIEW_QUEUE_STATE:-$HOME/.local/state/review-queue}/seen"`. It returns only `pr-review`/`recheck` rows whose `repo#N@head` was never announced, and records them, so each PR head is announced once.
-2. Empty array → end the tick with no text, no notification and no `wrap_up`. That is the normal case.
-3. Otherwise → step 2 (drop PRs with an open session), then send one `PushNotification` naming the new PRs, show the step 3 table, and call `mcp__ccd_turn__wrap_up` with the ask "Start these reviews?" and a first button "Start reviews". The click is a user turn and doubles as the step 3 confirmation; continue with step 4.
+2. Run step 2, but skip the `gh` lookup for any session whose `archive:<sessionId>` line is already in the same seen file. Append the lines for the new archive rows, so each merged session is announced once. A tick never archives on its own.
+3. Empty array and no new archive rows → end the tick with no text, no notification and no `wrap_up`. That is the normal case.
+4. Otherwise → send one `PushNotification` naming the new PRs and the merged sessions, show the step 3 tables, and call `mcp__ccd_turn__wrap_up` with the ask "Start these reviews?" and a first button "Start reviews" (when only archive rows are new: "Archive these sessions?" and "Archive"). The click is a user turn and doubles as the step 3 confirmation; continue with step 4.
 
 The loop lives in this session only: it fires while the app is open and this session is idle, and expires after 7 days. Every batch needs that one click, even with `--comment`.
 
@@ -107,3 +113,7 @@ The loop lives in this session only: it fires while the app is open and this ses
 | Starting sessions from a loop tick | Refused by the app; announce and offer the "Start reviews" button |
 | Passing `--every` on to the loop command | Strip it, or each tick schedules another loop |
 | Guessing a clone root when none was given | Ask the user (step 1); `queue.sh` exits 2 without one |
+| Finding a review session's PR from `name` or `prState` | Title number plus `gh pr view` inside the `cwd` clone (step 2); `name` is trimmed and review sessions have no bound PR |
+| Stopping on an empty queue before the archive sweep | Step 2 runs either way |
+| Archiving without the user's confirmation, or on a loop tick | Archive only rows the user confirmed in step 3 |
+| Archiving a session whose PR is closed but not merged | `MERGED` only |
