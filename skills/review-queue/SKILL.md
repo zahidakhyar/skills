@@ -35,10 +35,10 @@ Empty array → no PR is waiting on the user's review. Still run step 2: its arc
 
 ## 2. Check existing review sessions
 
-Call `mcp__ccd_session_mgmt__list_sessions` with `limit: 100` (the default 20 misses older ones), not `linked: true`: children from an earlier run belong to another dispatcher session. A review session is one whose title matches `^(Review|Recheck) .+#([0-9]+):` (the step 4 title). Find its PR from the title and `cwd`, never from `name` (trimmed to 24 chars, which can cut off the number) and never from `prState` (a review session opens no PR, so the app binds none; the app's `auto_archive_on_pr_close` setting never fires for these either).
+Call `mcp__ccd_session_mgmt__list_sessions` with `limit: 100` (the default 20 misses older ones), not `linked: true`: children from an earlier run belong to another dispatcher session. A review session is one whose title matches `^(Review|Recheck) [^#]+#([0-9]+):` (the step 4 title; `[^#]+` so a `#N:` inside the PR title is not taken as the number). Find its PR from the title and `cwd`, never from `name` (trimmed to 24 chars, which can cut off the number) and never from `prState` (a review session opens no PR, so the app binds none; the app's `auto_archive_on_pr_close` setting never fires for these either).
 
 - **Open session:** one still running or waiting for the user for a PR in the queue → mark the PR `skip` with reason "session already open" and link that session.
-- **Archive sweep:** for every review session with `isRunning: false`, take the number from the title and the repo from `git -C <cwd> remote get-url origin` (strip up to `github.com[:/]` and the trailing `.git`, as `queue.sh` does), then `gh pr view <number> -R <owner/repo> --json state -q .state`. `MERGED` → add it to the archive list as `repo#number` plus the session link. Any other state, a missing `cwd` or a failed lookup → leave the session alone.
+- **Archive sweep:** for every review session with `isRunning: false`, take the number from the title and run `cd <cwd> && gh pr view <number> --json state -q .state </dev/null`, so `gh` resolves the repo from the clone itself (SSH host aliases included). `MERGED` → add it to the archive list as `repo#number` plus the session link. Any other state, a missing `cwd` or a failed lookup → leave the session alone.
 
 ## 3. Confirm once
 
@@ -92,7 +92,7 @@ When no child is working and the queue is empty, report one line per PR from the
 
 A tick is an automated turn: the app refuses session starts on it. So a tick never starts children itself:
 1. `bash "${CLAUDE_SKILL_DIR}/scripts/queue.sh" [--team] [--root <dir>] --new "${REVIEW_QUEUE_STATE:-$HOME/.local/state/review-queue}/seen"`. It returns only `pr-review`/`recheck` rows whose `repo#N@head` was never announced, and records them, so each PR head is announced once.
-2. Run step 2. Keep only archive rows whose `archive:<sessionId>` line is not in the same seen file, and append those lines, so each merged session is announced once. A tick never archives on its own.
+2. Run step 2, but skip the `gh` lookup for any session whose `archive:<sessionId>` line is already in the same seen file. Append the lines for the new archive rows, so each merged session is announced once. A tick never archives on its own.
 3. Empty array and no new archive rows → end the tick with no text, no notification and no `wrap_up`. That is the normal case.
 4. Otherwise → send one `PushNotification` naming the new PRs and the merged sessions, show the step 3 tables, and call `mcp__ccd_turn__wrap_up` with the ask "Start these reviews?" and a first button "Start reviews" (when only archive rows are new: "Archive these sessions?" and "Archive"). The click is a user turn and doubles as the step 3 confirmation; continue with step 4.
 
@@ -113,7 +113,7 @@ The loop lives in this session only: it fires while the app is open and this ses
 | Starting sessions from a loop tick | Refused by the app; announce and offer the "Start reviews" button |
 | Passing `--every` on to the loop command | Strip it, or each tick schedules another loop |
 | Guessing a clone root when none was given | Ask the user (step 1); `queue.sh` exits 2 without one |
-| Finding a review session's PR from `name` or `prState` | Title number plus the `cwd` clone's origin (step 2); `name` is trimmed and review sessions have no bound PR |
+| Finding a review session's PR from `name` or `prState` | Title number plus `gh pr view` inside the `cwd` clone (step 2); `name` is trimmed and review sessions have no bound PR |
 | Stopping on an empty queue before the archive sweep | Step 2 runs either way |
 | Archiving without the user's confirmation, or on a loop tick | Archive only rows the user confirmed in step 3 |
 | Archiving a session whose PR is closed but not merged | `MERGED` only |
