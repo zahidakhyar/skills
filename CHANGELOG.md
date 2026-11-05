@@ -4,14 +4,21 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-05
+
 ### Changed
 
-- `autopilot` is renamed to `deliver` (`/deliver <task>`, `/deliver continue [PR]`). Runs under `.autopilot/` are still found. Install, tests, build and the local E2E now run one at a time across the machine (`heavy.sh`).
+- `autopilot` is renamed to `deliver` (`/deliver <task>`, `/deliver continue [PR]`). Runs under `.autopilot/` are still found. Install, tests, build and the local E2E now run one at a time across the machine (`heavy.sh`). (#8)
 
 ### Added
 
-- `autopilot`: a coordinator that picks up issues by a per-repo rule (`## Pickup` in `.claude/autopilot.md`), review requests and Slack mentions, and starts one session per item. One `## Pickup` at a workspace root covers every clone under it. Slack replies are drafts until you approve them.
-- `review-queue` offers to archive earlier review sessions whose PR has been merged, in the same confirmation as the new reviews. Interval ticks announce each one once.
+- `autopilot`: a coordinator that picks up issues by a per-repo rule (`## Pickup` in `.claude/autopilot.md`), review requests and Slack mentions, and starts one session per item. One `## Pickup` at a workspace root covers every clone under it. Slack replies are drafts until you approve them. (#8, #10)
+- `review-queue` offers to archive earlier review sessions whose PR has been merged, in the same confirmation as the new reviews. Interval ticks announce each one once. (#11)
+
+### Fixed
+
+- `autopilot` keeps only Slack messages that actually mention you. (#9)
+- `merged` asks its Next step through AskUserQuestion, and `review-queue` sends a notification when its queue drains. (#7)
 
 ## [0.3.0] - 2026-11-03
 
@@ -37,7 +44,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/zahidakhyar/skills/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/zahidakhyar/skills/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/zahidakhyar/skills/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/zahidakhyar/skills/releases/tag/v0.1.0
