@@ -166,6 +166,7 @@ Finds every open PR that requests your review and starts a separate session for 
 - Reviews in your existing local clones, found by their `origin` remote under `--root` (default `$REVIEW_QUEUE_ROOT`, else `~/Repositories`). Each review runs in its own throwaway worktree, so your checked-out branch is untouched. A missing clone is reported, never cloned for you.
 - `--team` also includes PRs that request a review from one of your teams.
 - Shows the queue and asks once before starting anything. Runs at most 2 review sessions at a time, 1 per repo. When one finishes it reports and offers a "Start next" button for the rest.
+- Finds earlier review sessions whose PR is now merged and offers to archive them in the same confirmation, even when no PR is waiting.
 - A `pr-review` session shows its draft and waits for your yes there; `--comment` is passed on and makes it post without asking. A `recheck` session posts on its own, as `recheck` always does.
 - `--every 30m` keeps checking through `/loop`: each new PR head is announced once (notification plus a "Start reviews" button), quiet ticks say nothing. The loop runs in that session only, while the app is open, and expires after 7 days.
 

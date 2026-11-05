@@ -11,6 +11,7 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 ### Added
 
 - `autopilot`: a coordinator that picks up issues by a per-repo rule (`## Pickup` in `.claude/autopilot.md`), review requests and Slack mentions, and starts one session per item. One `## Pickup` at a workspace root covers every clone under it. Slack replies are drafts until you approve them.
+- `review-queue` offers to archive earlier review sessions whose PR has been merged, in the same confirmation as the new reviews. Interval ticks announce each one once.
 
 ## [0.3.0] - 2026-11-03
 
