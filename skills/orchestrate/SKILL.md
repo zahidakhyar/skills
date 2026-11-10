@@ -125,7 +125,7 @@ Once every repo is clean, check the seams that no single child could see:
 
 Each mismatch is a finding with a severity label. Send it to the child that has to change (the side that deviates from the contract), with `FIX: <finding>, then <final verification>, commit, end your turn with FIXED`. Check the diff, then re-run this seam check. Up to 2 rounds, then carry what is left into the report.
 
-If this session has an advisor tool, call it once before leaving this step, after the last seam check and before the report. Each child's advisor saw one repo only, so this is the one review in the flow with no second look. No advisor tool → skip it and add "seam check: no advisor" to the report.
+If this session has an advisor tool, call it once before leaving this step, after the last seam check and before the report. Each child's advisor saw one repo only, so this is the one review in the flow with no second look. It reads only this conversation, so the contract and the server and client excerpts you compared must be in it, not just your conclusion. No advisor tool → skip it and add "seam check: no advisor" to the report.
 
 ### 7. Report and ship
 
@@ -157,7 +157,7 @@ You are the builder for plan <absolute plan path> (<N> tasks) in repo <repo root
    - CONTRACT: <the exact change you need and why>, when building to the contract as written is impossible or wrong.
    For these two, first send SendMessage to "<coordinator id>" with that line as the first line, then end your turn and wait for the reply. A final message alone does not reach the coordinator while other builders are still working.
    - DONE: when all tasks and the final verification pass, end your turn with a final message whose first line is: DONE: <branch from `git branch --show-current`>, <commit count> commits, verification passed. The coordinator sees only its first ~400 characters.
-4. If you have an advisor tool, call it at these checkpoints, not only when you feel like it: before you start the first task, before reporting DONE, before sending BLOCKED or CONTRACT, and before ending a REVIEW round that still leaves a High or Medium finding. Its whole value is a second look at the moments a wrong call is expensive. No advisor tool in this session → skip this step and add "no advisor" to your DONE line.
+4. If you have an advisor tool, call it at these checkpoints, not only when you feel like it: before you start the first task, before reporting DONE, before sending BLOCKED or CONTRACT, and before ending a REVIEW round that still leaves a High or Medium finding. Its whole value is a second look at the moments a wrong call is expensive. If it settles a BLOCKED question by pointing at the plan, the contract, or the code, carry on without sending it; a product or scope decision it can only guess at still goes to the coordinator. No advisor tool in this session → skip this step and add "no advisor" to your DONE line.
 5. After DONE, the coordinator sends REVIEW and FIX instructions. Do exactly what they say, commit, and end your turn with the reply line the instruction asks for (REVIEWED or FIXED). These are part of your job, not a new task: stay on the same branch.
 No push, no merge, no PR, no edits outside the plan and the coordinator's REVIEW/FIX instructions, until the coordinator says so.
 ```
