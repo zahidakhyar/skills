@@ -127,6 +127,8 @@ The output of a recheck is the review itself, not a comment about the review. Ea
 
   Body two or three lines: state plus head sha, gates in one clause, where anything new lives ("3 nit inline"). Findings still open get one line each: `**<Severity>** \`path:line\` — <reason>`. Last line is the hidden baseline marker: `<!-- reviewed: <head-sha> -->`. No new findings → omit `comments`.
 
+If this session has an advisor tool, call it once before the first resolve or reply, with the verdicts and the draft body in this conversation: a recheck has no draft step, so this is the only second look before a thread closes or an `APPROVE` goes out. Treat its objection like an author rebuttal: re-read the code, then keep or change the verdict.
+
 No summary comment and no separate `gh pr review` call: the review body carries the verdict, and a second message with the same content is what gets the whole review skimmed. GitHub blocks approve/request-changes on your own PR; there `event` is `COMMENT` and the verdict is the body's first line, marker included.
 
 Review body for a PR where everything is fixed:

@@ -85,7 +85,7 @@ Write `review.json` to the scratchpad, in the shape `${CLAUDE_SKILL_DIR}/referen
 
 Without `--comment`: show the user what the author will read (the verdict, the full body, and every inline comment with its `path:line`), then ask whether to post. Posting waits for a yes; requested edits → apply, show again.
 
-With `--comment`: post straight away. The flag is the yes.
+With `--comment`: post straight away. The flag is the yes. If this session has an advisor tool, call it once first, with the draft in this conversation: with the flag, nobody reads the review before the author does.
 
 ```bash
 gh api repos/{owner}/{repo}/pulls/<PR>/reviews --input <scratchpad>/review.json -q .html_url
