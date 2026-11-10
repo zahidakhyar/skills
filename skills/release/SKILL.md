@@ -1,18 +1,20 @@
 ---
 name: release
-description: Use when the user wants to cut a new version release of a JS/TS project — types /release <major|minor|patch>, or asks variations of "release patch", "rilis versi baru", "bump version lalu buat PR release", "naikin versi minor", or says a release PR was merged and the GitHub release / CHANGELOG is still pending.
+description: Use when the user wants to cut a new version release of a JS/TS project or a Claude Code plugin — types /release <major|minor|patch>, or asks variations of "release patch", "rilis versi baru", "bump version lalu buat PR release", "naikin versi minor", or says a release PR was merged and the GitHub release / CHANGELOG is still pending.
 ---
 
 # Release
 
 Run the version bump + CHANGELOG → push + tags → release PR cycle in one go, then the GitHub release after merge. Final output: the new version + the PR URL.
 
-Arguments: `/release <major|minor|patch>`. No argument → ask for the bump type first (show the current version from `package.json` so the user can pick easily).
+Arguments: `/release <major|minor|patch>`. No argument → ask for the bump type first (show the current version from the version file so the user can pick easily).
+
+Version file: `package.json`, else `.claude-plugin/plugin.json` (a Claude Code plugin, which has no `package.json`).
 
 ## Flow
 
-1. **Check state** — `git status --porcelain` must be clean (`npm version` refuses a dirty tree). Uncommitted changes → stop: ask the user to commit/stash first. Also make sure a `package.json` exists; if not, this is not a JS project → stop.
-   Multi-project workspace (e.g. `acme/`, the `workspace/` root): `cd` into the repo that owns the target `package.json` first, not the workspace root.
+1. **Check state** — `git status --porcelain` must be clean (`npm version` refuses a dirty tree). Uncommitted changes → stop: ask the user to commit/stash first. Also make sure a version file exists; neither `package.json` nor `.claude-plugin/plugin.json` → stop, this skill has nothing to bump.
+   Multi-project workspace (e.g. `acme/`, the `workspace/` root): `cd` into the repo that owns the target version file first, not the workspace root.
 
 2. **Detect the repo's branch convention** (never assume, every repo differs):
    - Check the project's CLAUDE.md for a release convention (e.g. a `## Loop Config` block with `Release branch`).
@@ -23,7 +25,13 @@ Arguments: `/release <major|minor|patch>`. No argument → ask for the bump type
 3. **Prepare the branch** — check out the source branch, `git pull --ff-only` to bring it up to date. Single-branch pattern: `git checkout -b release/next`; after step 4, `git branch -m release/v<new version>` (the new version comes from `npm version`'s output, so there is nothing to compute by hand).
 
 4. **Bump + CHANGELOG in one release commit** — the tag must point at a commit that already carries its own CHANGELOG entry, so no follow-up CHANGELOG PR is ever needed.
-   1. `NEW=$(npm version <major|minor|patch> --no-git-tag-version)` — edits `package.json` (and `package-lock.json` if present) without committing; prints `vx.x.x`. Safe with yarn/pnpm: it installs nothing. `git rev-parse -q --verify "refs/tags/$NEW"` succeeds → that version was released before, `git checkout -- .` and ask which bump.
+   1. `NEW=$(npm version <major|minor|patch> --no-git-tag-version)` — edits `package.json` (and `package-lock.json` if present) without committing; prints `vx.x.x`. Safe with yarn/pnpm: it installs nothing. Plugin (`.claude-plugin/plugin.json`, no `package.json`) → bump that file's `version` line instead, leaving the rest of the file byte for byte:
+      ```bash
+      CUR=$(jq -r .version .claude-plugin/plugin.json)
+      NEW=v$(echo "$CUR" | awk -F. -v b=<major|minor|patch> '{if(b=="major"){$1++;$2=0;$3=0}else if(b=="minor"){$2++;$3=0}else{$3++} print $1"."$2"."$3}')
+      V="${NEW#v}" perl -pi -e 's/("version":\s*")[^"]+/$1$ENV{V}/' .claude-plugin/plugin.json
+      ```
+      Either way, `git rev-parse -q --verify "refs/tags/$NEW"` succeeds → that version was released before, `git checkout -- .` and ask which bump.
    2. Repo has a `CHANGELOG.md` → insert `## [x.x.x] - YYYY-MM-DD` above the previous version heading, in the file's existing format (Keep a Changelog: `### Added` / `### Changed` / `### Fixed` / `### Removed`, one line per change with `(#N)`). Source: `rtk proxy git log "$(git describe --tags --abbrev=0)"..HEAD --no-merges --format='%s'`; group trivial bumps (deps, actions) into one line. An `## [Unreleased]` section with content → move its items under the new heading and leave `## [Unreleased]` empty. Run the repo's formatter on the file if it has one (e.g. `npx prettier --write CHANGELOG.md`). No `CHANGELOG.md` → skip, do not create one.
    3. `git commit -am "chore: release $NEW"` then `git tag -a "$NEW" -m "chore: release $NEW"`.
 

@@ -67,7 +67,7 @@ Plugin skills are namespaced: `/zahidakhyar-skills:ship`, `/zahidakhyar-skills:p
 | [`recheck`](#recheck) | The author pushed fixes after your review |
 | [`review-queue`](#review-queue) | Work through every PR waiting on your review, one session per PR |
 | [`merged`](#merged) | A PR was merged and the local leftovers need cleaning |
-| [`release`](#release) | Cut a new version of a JS/TS project |
+| [`release`](#release) | Cut a new version of a JS/TS project or a Claude Code plugin |
 | [`orchestrate`](#orchestrate) | Build one or more implementation plans in separate sessions |
 | [`deliver`](#deliver) | One task end to end, with E2E proof locally and on dev |
 | [`autopilot`](#autopilot) | Your assistant: picks up issues, review requests and Slack mentions, one session each |
@@ -187,7 +187,7 @@ Post-merge cleanup.
 
 ### release
 
-Version bump plus release PR for a JS/TS project.
+Version bump plus release PR for a JS/TS project (`package.json`) or a Claude Code plugin (`.claude-plugin/plugin.json`).
 
 ```
 /zahidakhyar-skills:release <major|minor|patch>
