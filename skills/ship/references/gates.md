@@ -32,6 +32,22 @@ Polyglot repo (a `go.mod` service next to a Next.js app): run only the gates for
 ecosystems the changed files belong to. Running the frontend suite for a Go-only fix burns
 minutes and proves nothing about the fix.
 
+## One heavy command at a time, machine-wide
+
+The skill that sent you here names the path of `heavy.sh` (it ships with the `deliver` skill).
+When that file exists, run every install, typecheck, build and test command as
+`bash <heavy.sh path> <command>`. It holds a machine-wide lock, so sessions working in other
+repos never run two heavy commands at once. The worker caps below limit one command; the lock
+limits how many run.
+
+`heavy.sh` runs its arguments as one program. A command with `&&`, a pipe or an env prefix
+(`cd app && pnpm test`, `NODE_ENV=test jest`) goes in as `bash <heavy.sh path> sh -c '<command>'`,
+or only its first word runs under the lock.
+
+The call waits while another session holds the lock, which can be longer than one Bash call
+lasts. A gate likely to wait or to run past a couple of minutes → start it with Bash
+`run_in_background` and read its output when it finishes.
+
 ## Parallelism caps
 
 This machine is low-spec and an uncapped suite can hang it, which costs far more time than the

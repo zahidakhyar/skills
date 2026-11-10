@@ -28,6 +28,10 @@ jobs:
       - name: Shellcheck bundled scripts
         run: shellcheck -S warning skills/*/scripts/*.sh
 
+      - name: Script tests
+        run: |
+          for t in tests/*/*_test.sh; do bash "$t"; done
+
       - name: Scripts are executable
         run: |
           bad=$(git ls-files -s 'skills/*/scripts/*' | awk '$1 != "100755" {print $4}')

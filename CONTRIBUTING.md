@@ -64,6 +64,10 @@ shellcheck -S warning skills/*/scripts/*.sh
 ```
 
 ```bash
+(set -e; for t in tests/*/*_test.sh; do bash "$t"; done)
+```
+
+```bash
 grep -rnF '.claude/skills/' skills && echo "hardcoded path found" || echo ok
 ```
 

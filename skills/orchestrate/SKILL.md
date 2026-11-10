@@ -152,6 +152,7 @@ You are the builder for plan <absolute plan path> (<N> tasks) in repo <repo root
 1. You are already on your own worktree branch, cut from <base>. Use <execution skill> to execute every task in the plan. Decide on your own between tasks; do not ask the user.
 <Only for an Opus child running subagent-driven-development:> The user chose quality over cost for this run. Override that skill's Model Selection: dispatch every subagent (implementers, reviewers, fixers) with model <opus id>, including tasks that look mechanical.
 2. Each task: its own `Run:` commands from the plan, exit 0, then commit. After the last task: <final verification>, exit 0.
+<Only when `${CLAUDE_SKILL_DIR}/../deliver/scripts/heavy.sh` exists; write its absolute path:> Run every install, test, typecheck and build command as `bash <heavy.sh path> <command>` (a command with `&&`, a pipe or an env prefix: `bash <heavy.sh path> sh -c '<command>'`), in REVIEW and FIX rounds too. It holds a machine-wide lock, so builders in other repos never run two heavy commands at once.
 3. Report to the coordinator only in these cases:
    - BLOCKED: <the question>, when the plan, the contract, and the code cannot settle it.
    - CONTRACT: <the exact change you need and why>, when building to the contract as written is impossible or wrong.

@@ -44,7 +44,7 @@ The last command must list only the PR's own commits (compare with `gh pr view <
 
 ## 4. Gates
 
-`gh pr checks <PR>` (it reports the checks of the PR head); `.github/workflows/*.yml` shows what each check runs. A check that runs typecheck and tests is green → cite its name, run nothing locally. No such check, or it is red or pending → run the gates in the worktree per `${CLAUDE_SKILL_DIR}/../ship/references/gates.md` (repo scripts first, related tests only, worker caps); copy `.env` and friends from the main checkout first. A gate that cannot start (no database, no credentials) → `UNVERIFIED: <reason>` in the body. A red gate is a High finding quoting the failure, unless the same check is also red on `<base>`, which makes it Pre-existing.
+`gh pr checks <PR>` (it reports the checks of the PR head); `.github/workflows/*.yml` shows what each check runs. A check that runs typecheck and tests is green → cite its name, run nothing locally. No such check, or it is red or pending → run the gates in the worktree per `${CLAUDE_SKILL_DIR}/../ship/references/gates.md` (repo scripts first, related tests only, worker caps), each command as `bash ${CLAUDE_SKILL_DIR}/../deliver/scripts/heavy.sh <command>` when that file exists, so reviews running in other sessions never run two heavy commands at once; copy `.env` and friends from the main checkout first. A gate that cannot start (no database, no credentials) → `UNVERIFIED: <reason>` in the body. A red gate is a High finding quoting the failure, unless the same check is also red on `<base>`, which makes it Pre-existing.
 
 ## 5. Review
 
