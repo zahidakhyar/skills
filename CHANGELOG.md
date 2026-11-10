@@ -17,6 +17,7 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 - `merged` no longer suggests a plan that already shipped but whose checkboxes were never ticked. (#14)
 - `autopilot` finds an open review session by its title; the trimmed session name could lose the PR number. (#14)
+- `heavy.sh` on Linux no longer mistakes a live lock holder for a stale one, which let two heavy commands run at once. (#14)
 
 ## [0.4.0] - 2026-11-05
 

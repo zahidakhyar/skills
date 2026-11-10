@@ -32,7 +32,17 @@ wait_max="${HEAVY_WAIT_MAX:-7200}"
 grace=10 # seconds a lock or reap dir without info may stay before it counts as abandoned
 mkdir -p "$(dirname "$lock")"
 
-started() { ps -o lstart= -p "$1" 2>/dev/null || true; }
+# started <pid>: a value that stays the same for the life of that process.
+# Linux reads the start tick (field 22 of /proc/<pid>/stat), which is exact;
+# ps there derives lstart from the wall clock, so it can shift by a second
+# between two calls and make a live holder look like a reused pid.
+started() {
+  if [ -r "/proc/$1/stat" ]; then
+    sed 's/.*) //' "/proc/$1/stat" 2>/dev/null | awk '{print $20}' || true
+  else
+    ps -o lstart= -p "$1" 2>/dev/null || true
+  fi
+}
 
 # age <path>: seconds since last change; fails when the path is gone.
 age() {
