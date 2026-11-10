@@ -29,7 +29,7 @@ A token starting with `--` is a flag; the one remaining token is the PR ref (num
 
 3. **Base** — `git status --porcelain` in the current checkout must be empty; changes → **ask** before switching branches. Then `git checkout <base>`, `git pull --ff-only`, record `git rev-parse --short <base>` for the `base@sha` column. Fast-forward fails → report, never reset/force.
 
-4. **Local branch** — if `git branch --list <head>` exists → `git branch -D <head>` (`-d` refuses squash-merged branches; `-D` is safe because step 1 already confirmed MERGED). Missing → column `clean`, no command. Also leftover review branches: `git branch --list 'pr-*'`, take the number from `pr-<N>[-suffix]`, `gh pr view <N> --json state`; `MERGED` → `git branch -D`, otherwise leave it. The count goes in the `local branch` column.
+4. **Local branch** — if `git branch --list <head>` exists → `git branch -D <head>` (`-d` refuses squash-merged branches; `-D` is safe because step 1 already confirmed MERGED). Missing → column `clean`, no command. Also leftover review branches: `git branch --list 'pr-*'`, take the number from `pr-<N>[-suffix]` or `pr-review-<N>` (what `pr-review` leaves behind when it stops early), `gh pr view <N> --json state`; `MERGED` → `git branch -D`, otherwise leave it. The count goes in the `local branch` column.
 
 5. **Remote** — `git fetch --prune`. If `git ls-remote --heads origin <head>` still exists → `git push origin --delete <head>`.
 

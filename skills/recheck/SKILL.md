@@ -83,6 +83,8 @@ Two failure modes worth guarding against, because both feel reasonable in the mo
 
 ## 5. Resolve threads — narrowly
 
+If this session has an advisor tool, call it once before the first resolve or reply, with every verdict from §4 in this conversation: a recheck has no draft step, so this is the only second look before a thread closes or an `APPROVE` goes out. Treat its objection like an author rebuttal: re-read the code, then keep or change the verdict.
+
 Resolve only when the verdict is `FIXED` **and** the thread's `path` is in `changed_files`. `REBUTTED-VALID` is the single exception: no code change is expected there, so say that explicitly in the reply.
 
 ```bash

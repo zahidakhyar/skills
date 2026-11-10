@@ -30,7 +30,7 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 
 ## Phase 1 — task to PR
 
-1. **Criteria and scenarios.** Create the run folder and write `state.json` with `phase: build`. Read the issue when one is given. Write 3–7 pass criteria as things a user can observe ("filtering by PAID shows only paid orders; the URL keeps `?status=PAID` after reload"). Derive at least one scenario per criterion, edge cases included (empty result, invalid input, unauthorized). Post the criteria in chat in one short list ending with "Lanjut dengan kriteria ini kecuali ada yang salah." and keep going. Do not wait for an answer.
+1. **Criteria and scenarios.** Create the run folder and write `state.json` with `phase: build`. Read the issue when one is given. Write 3–7 pass criteria as things a user can observe ("filtering by PAID shows only paid orders; the URL keeps `?status=PAID` after reload"). Derive at least one scenario per criterion, edge cases included (empty result, invalid input, unauthorized). Post the criteria in chat in one short list ending with one sentence, in the user's language (no message from the user in this session → the language of the issue or task text), saying you continue with these criteria unless one is wrong, and keep going. Do not wait for an answer. If this session has an advisor tool, call it once on the criteria and scenarios before building: nobody confirms them, and every later step proves only what they say. A gap it finds → fix `criteria.md` and `scenarios.md`, and post the changed lines.
 2. **Repo config.** Read `.claude/autopilot.md`. Missing → draft it from [config-template.md](references/config-template.md), filled from `package.json` scripts, `docker-compose*`, `.env.example`, `.github/workflows`, and `railway.json`/`railway.toml`. It is committed with this PR.
 3. **Build, always in a worktree.** The main checkout is the user's: its branch, uncommitted files and running processes stay untouched.
    - This session already runs in a worktree (`git rev-parse --git-dir` differs from `--git-common-dir`) → use it.
@@ -50,7 +50,7 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
    - `ship` added any commit after `tested_sha` (`chore: format`, review fixes) → rerun local E2E on the new HEAD (through `heavy.sh`, as in step 4) and update `tested_sha`. A scenario now fails → mark the PR draft (`gh pr ready <N> --undo`), set `phase: blocked`, and report as a stop; fix it through step 4 and push to the same PR.
    - Add one line per scenario under the PR body's `## Test plan`: `- [x] E2E local S1 (<criterion>): <steps in a few words> → pass`. Do it with `gh pr view <N> --json body`, inserting the lines, then `gh pr edit <N> --body-file <file>`. Phase 2 rebuilds the scenarios from these lines if the run folder is lost.
    - Write `pr`, `url`, `repo` and `phase: pr-open` into `state.json`.
-6. **Report and hand off.** Write the report (format below) to `report.md` and send it with `SendUserFile`. Ask with `AskUserQuestion` (it reaches the user's phone): "Kabari aku setelah merge, sertakan URL dev." `wrap_up` carries the recap only.
+6. **Report and hand off.** Write the report (format below) to `report.md` and send it with `SendUserFile`. Ask with `AskUserQuestion` (it reaches the user's phone), in the user's language, to be told once the PR is merged, with the dev URL. `wrap_up` carries the recap only.
 
 ## Phase 2 — after merge
 
