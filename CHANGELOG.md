@@ -7,16 +7,16 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 ### Added
 
 - `orchestrate`: the coordinator consults its advisor once after the cross-repo seam check, and a builder consults its advisor before sending `BLOCKED`. (#13)
-- `release` also releases a Claude Code plugin, bumping `version` in `.claude-plugin/plugin.json` when the repo has no `package.json`.
+- `release` also releases a Claude Code plugin, bumping `version` in `.claude-plugin/plugin.json` when the repo has no `package.json`. (#14)
 
 ### Changed
 
-- Gates in `pr-review`, `recheck` and `orchestrate` builders run through the machine-wide `heavy.sh` lock, as `ship` and `deliver` already did.
+- Gates in `pr-review`, `recheck` and `orchestrate` builders run through the machine-wide `heavy.sh` lock, as `ship` and `deliver` already did. (#14)
 
 ### Fixed
 
-- `merged` no longer suggests a plan that already shipped but whose checkboxes were never ticked.
-- `autopilot` finds an open review session by its title; the trimmed session name could lose the PR number.
+- `merged` no longer suggests a plan that already shipped but whose checkboxes were never ticked. (#14)
+- `autopilot` finds an open review session by its title; the trimmed session name could lose the PR number. (#14)
 
 ## [0.4.0] - 2026-11-05
 

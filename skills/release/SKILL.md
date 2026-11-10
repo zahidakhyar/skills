@@ -29,9 +29,9 @@ Version file: `package.json`, else `.claude-plugin/plugin.json` (a Claude Code p
       ```bash
       CUR=$(jq -r .version .claude-plugin/plugin.json)
       NEW=v$(echo "$CUR" | awk -F. -v b=<major|minor|patch> '{if(b=="major"){$1++;$2=0;$3=0}else if(b=="minor"){$2++;$3=0}else{$3++} print $1"."$2"."$3}')
-      V="${NEW#v}" perl -pi -e 's/("version":\s*")[^"]+/$1$ENV{V}/' .claude-plugin/plugin.json
+      V="${NEW#v}" perl -0pi -e 's/("version":\s*")[^"]+/$1$ENV{V}/' .claude-plugin/plugin.json
       ```
-      Either way, `git rev-parse -q --verify "refs/tags/$NEW"` succeeds → that version was released before, `git checkout -- .` and ask which bump.
+      `-0` reads the file whole, so only the first `"version"` (the plugin's own) changes. Both files exist → `npm version` first, then run the `perl` line with its `$NEW` so `plugin.json` matches. A `.claude-plugin/marketplace.json` that repeats the plugin's version → set it to the same value. Either way, `git rev-parse -q --verify "refs/tags/$NEW"` succeeds → that version was released before, `git checkout -- .` and ask which bump.
    2. Repo has a `CHANGELOG.md` → insert `## [x.x.x] - YYYY-MM-DD` above the previous version heading, in the file's existing format (Keep a Changelog: `### Added` / `### Changed` / `### Fixed` / `### Removed`, one line per change with `(#N)`). Source: `rtk proxy git log "$(git describe --tags --abbrev=0)"..HEAD --no-merges --format='%s'`; group trivial bumps (deps, actions) into one line. An `## [Unreleased]` section with content → move its items under the new heading and leave `## [Unreleased]` empty. Run the repo's formatter on the file if it has one (e.g. `npx prettier --write CHANGELOG.md`). No `CHANGELOG.md` → skip, do not create one.
    3. `git commit -am "chore: release $NEW"` then `git tag -a "$NEW" -m "chore: release $NEW"`.
 

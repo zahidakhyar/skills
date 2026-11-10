@@ -40,6 +40,10 @@ When that file exists, run every install, typecheck, build and test command as
 repos never run two heavy commands at once. The worker caps below limit one command; the lock
 limits how many run.
 
+`heavy.sh` runs its arguments as one program. A command with `&&`, a pipe or an env prefix
+(`cd app && pnpm test`, `NODE_ENV=test jest`) goes in as `bash <heavy.sh path> sh -c '<command>'`,
+or only its first word runs under the lock.
+
 The call waits while another session holds the lock, which can be longer than one Bash call
 lasts. A gate likely to wait or to run past a couple of minutes → start it with Bash
 `run_in_background` and read its output when it finishes.
