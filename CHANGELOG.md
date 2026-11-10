@@ -4,11 +4,12 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-10
+
 ### Added
 
 - `orchestrate`: the coordinator consults its advisor once after the cross-repo seam check, and a builder consults its advisor before sending `BLOCKED`. (#13)
 - `release` also releases a Claude Code plugin, bumping `version` in `.claude-plugin/plugin.json` when the repo has no `package.json`. (#14)
-
 - `recheck`, `pr-review --comment` and `deliver` consult the advisor, when the session has one, before the step nobody else reviews: posting the review, and fixing the pass criteria. (#16)
 
 ### Changed
