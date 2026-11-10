@@ -63,6 +63,13 @@ realps="$(command -v ps)"
 printf '#!/usr/bin/env bash\nsleep 0.3\nexec %s "$@"\n' "$realps" >"$fakebin/ps"
 chmod +x "$fakebin/ps"
 
+# A mkdir that also succeeds when the directory is already there, as racing
+# mkdir calls do under uutils coreutils (Ubuntu 26.04). The lock must not
+# rely on mkdir failing for the loser.
+realmkdir="$(command -v mkdir)"
+printf '#!/usr/bin/env bash\n%s "$@" 2>/dev/null || [ -d "${!#}" ]\n' "$realmkdir" >"$fakebin/mkdir"
+chmod +x "$fakebin/mkdir"
+
 # concurrent waiters with a slow ps
 log="$tmp/conc.log"
 for i in 1 2 3 4; do

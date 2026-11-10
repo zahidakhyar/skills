@@ -4,7 +4,8 @@
 #
 #   heavy.sh <command> [args...]
 #
-# Exits with the command's exit code. The lock is a directory; its "info" file
+# Exits with the command's exit code. The lock is a directory, held by whoever
+# created its "owner" file; its "info" file
 # holds the holder's pid, process start time and command, written in one
 # rename so a reader never sees it half-done. A lock whose pid is gone, or
 # whose pid now belongs to another process (start time differs), is stale.
@@ -32,17 +33,13 @@ wait_max="${HEAVY_WAIT_MAX:-7200}"
 grace=10 # seconds a lock or reap dir without info may stay before it counts as abandoned
 mkdir -p "$(dirname "$lock")"
 
-# started <pid>: a value that stays the same for the life of that process.
-# Linux reads the start tick (field 22 of /proc/<pid>/stat), which is exact;
-# ps there derives lstart from the wall clock, so it can shift by a second
-# between two calls and make a live holder look like a reused pid.
-started() {
-  if [ -r "/proc/$1/stat" ]; then
-    sed 's/.*) //' "/proc/$1/stat" 2>/dev/null | awk '{print $20}' || true
-  else
-    ps -o lstart= -p "$1" 2>/dev/null || true
-  fi
-}
+started() { ps -o lstart= -p "$1" 2>/dev/null || true; }
+
+# claim <path>: create the file only if it is not there yet. Bash opens it
+# with O_EXCL itself, so exactly one caller wins. mkdir does not promise that
+# everywhere: under uutils coreutils (Ubuntu 26.04) several racing mkdir calls
+# on one path can all exit 0.
+claim() { ( set -C; : >"$1" ) 2>/dev/null; }
 
 # age <path>: seconds since last change; fails when the path is gone.
 age() {
@@ -67,21 +64,22 @@ is_stale() {
 
 take_over() {
   local a
-  if ! mkdir "$reap" 2>/dev/null; then
+  if ! claim "$reap"; then
     # Another waiter is reaping; clear its guard only if it was abandoned.
+    # rmdir too: a guard left by an older version of this script is a directory.
     if a="$(age "$reap")" && [ "$a" -gt "$grace" ]; then
-      rmdir "$reap" 2>/dev/null || true
+      rm -f "$reap" 2>/dev/null || rmdir "$reap" 2>/dev/null || true
     fi
     return 0
   fi
   if is_stale; then rm -rf "$lock"; fi
-  rmdir "$reap" 2>/dev/null || true
+  rm -f "$reap" 2>/dev/null || true
 }
 
 me_start="$(started "$$")"
 announced=""
 waited_since=$(date +%s)
-until mkdir "$lock" 2>/dev/null; do
+until mkdir "$lock" 2>/dev/null && claim "$lock/owner"; do
   if [ $(( $(date +%s) - waited_since )) -ge "$wait_max" ]; then
     echo "gave up waiting for heavy lock after ${wait_max}s: $lock" >&2
     exit 124
