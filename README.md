@@ -248,8 +248,8 @@ One task carried to evidence: pass criteria, build, local E2E, PR, and after you
 ```
 
 - Phase 1 writes 3–7 pass criteria and one scenario per criterion, builds with TDD in its own worktree under `.worktrees/` (your checkout, uncommitted files and running dev server stay untouched; the local run gets its own port and database), then runs every scenario locally (Playwright via the `playwright-cli` skill for web, HTTP calls for APIs). Evidence goes to `.deliver/<date>-<slug>/` in the main checkout, excluded from git.
-- The app won't start locally → stops before `ship`, with no PR or draft PR, and names what is missing. Otherwise it runs `ship --auto-fix`; the PR's Test plan lists each local scenario.
-- The merge is yours. Tell Claude it is merged and give the dev URL (`merged` also suggests `/deliver continue <PR>`). Phase 2 waits for the merge commit to be live (`/version` endpoint, GitHub Actions, Railway, or the Azure portal through Chrome), reruns the scenarios on dev, and comments the results on the PR.
+- The app won't start locally → stops before `ship`, with no PR or draft PR, and names what is missing. Otherwise it runs `ship --auto-fix`; the PR's Test plan lists each local scenario, and a result comment (verdict, commit, scenario table) goes on the PR and on the issue the task came from.
+- The merge is yours. Tell Claude it is merged and give the dev URL (`merged` also suggests `/deliver continue <PR>`). Phase 2 waits for the merge commit to be live (`/version` endpoint, GitHub Actions, Railway, or the Azure portal through Chrome), reruns the scenarios on dev, and comments the results on the PR and the issue, in the same shape as the local comment.
 - Logs in on dev only when the hostname has a test label (`dev`, `staging`, `test`, `qa`, `sandbox`, `preview`), with test accounts from the repo's seed or fixtures. Never touches prod, never merges.
 - Every phase ends with the same five lines:
 
