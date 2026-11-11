@@ -182,6 +182,7 @@ Post-merge cleanup.
 - Asks before touching anything with uncommitted changes.
 - GitHub only auto-closes `Closes #N` issues for PRs into the default branch. For a PR into `dev`, the skill reports which issues are still open; `--close-issues` closes them.
 - After a hotfix into `main`, checks whether `dev` needs a back-merge.
+- Suggests `/deliver continue <PR>` for a Medium or High risk PR that had no E2E, when the repo has a dev environment.
 - Works in a folder with several sub-repos.
 - `--dry-run` prints the commands without running them.
 
@@ -236,6 +237,8 @@ sequenceDiagram
     C->>FE: /ship --auto-fix --reviewed
 ```
 
+Once every PR of a cross-repo build is merged, it suggests one dev E2E across the repos: `/deliver continue <client PR> --with <other PRs>`.
+
 Works only in the Claude desktop app's Code tab, which provides the session tools.
 
 ### deliver
@@ -244,12 +247,13 @@ One task carried to evidence: pass criteria, build, local E2E, PR, and after you
 
 ```
 /zahidakhyar-skills:deliver <task | #issue | issue URL>
-/zahidakhyar-skills:deliver continue [PR]
+/zahidakhyar-skills:deliver continue [PR] [--with <PR URL> ...]
 ```
 
 - Phase 1 writes 3–7 pass criteria and one scenario per criterion, builds with TDD in its own worktree under `.worktrees/` (your checkout, uncommitted files and running dev server stay untouched; the local run gets its own port and database), then runs every scenario locally (Playwright via the `playwright-cli` skill for web, HTTP calls for APIs). Evidence goes to `.deliver/<date>-<slug>/` in the main checkout, excluded from git.
 - The app won't start locally → stops before `ship`, with no PR or draft PR, and names what is missing. Otherwise it runs `ship --auto-fix`; the PR's Test plan lists each local scenario, and a result comment (verdict, commit, scenario table) goes on the PR and on the issue the task came from.
 - The merge is yours. Tell Claude it is merged and give the dev URL (`merged` also suggests `/deliver continue <PR>`). Phase 2 waits for the merge commit to be live (`/version` endpoint, GitHub Actions, Railway, or the Azure portal through Chrome), reruns the scenarios on dev, and comments the results on the PR and the issue, in the same shape as the local comment.
+- `/deliver continue <PR>` also works on a merged PR that never went through phase 1 (opened with plain `ship`, or built by `orchestrate`): it writes the criteria and scenarios from the PR, its diff and its issue, and dev is the first E2E the change gets. `--with <PR URL> ...` adds PRs from other repos that must be live at the same time; the dev comment then goes on each of them.
 - Logs in on dev only when the hostname has a test label (`dev`, `staging`, `test`, `qa`, `sandbox`, `preview`), with test accounts from the repo's seed or fixtures. Never touches prod, never merges.
 - Every phase ends with the same five lines:
 

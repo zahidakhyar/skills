@@ -141,7 +141,8 @@ Runs when the user says the PRs are merged ("merged", "the PRs are in", in any l
 
 1. **Archive the children first.** Ask the user once for all of them ("archive N session builder?"), then `mcp__ccd_session_mgmt__archive_session` per child with reason `PR <owner/repo>#<n> merged`. Archiving stops the child and removes its worktree, which `/merged` would otherwise refuse to remove while the child still has it checked out.
 2. **Run `/merged <PR>` for each repo.** The coordinator usually sits outside these repos, so run every git command of that skill as `git -C <repo root>` and every gh command with `-R <owner/repo>`. It removes the local branch, syncs the base, and checks linked issues.
-3. **Report** with `/merged`'s table, one row per repo. Then offer to archive this coordinator session; that is the user's call.
+3. **Dev E2E across the seam**, with 2+ repos only. Each `/merged` run may suggest its own `/deliver continue <PR>`; replace those with one suggestion, to be run in the repo that calls the contract (the client): `/deliver continue <its PR> --with <URL of every other PR>`. It waits until every repo's merge commit is deployed, then tests the contract's endpoints through the client on dev, which no single-repo test covered, and comments the result on every PR. Suggest it only when all PRs are merged; one still open → name it instead. This session does not run the E2E and never passes a dev URL along: `deliver` takes that from the user alone. One repo → keep `/merged`'s own suggestion.
+4. **Report** with `/merged`'s table, one row per repo, then the suggestion from 3. Then offer to archive this coordinator session; that is the user's call.
 
 ## Builder prompt
 

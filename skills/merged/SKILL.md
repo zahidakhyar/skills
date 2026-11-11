@@ -47,6 +47,7 @@ A token starting with `--` is a flag; the one remaining token is the PR ref (num
 
 8. **Next** — read-only, runs even with `--dry-run`. Collect candidates in the repo steps 1–7 worked on:
    - **Deliver** — `bash ${CLAUDE_SKILL_DIR}/../deliver/scripts/run_dir.sh --find <N>` exits 0 and that folder's `state.json` has a `phase` other than `done` or `dev-testing` → candidate "`/deliver continue <N>`": dev E2E for this PR is still pending.
+   - **Dev E2E** — `run_dir.sh --find <N>` finds nothing (the PR did not come through `deliver`), the PR's base is the branch dev deploys from (`dev` or `develop` when the repo has one; in a repo without either, the default branch, and only when `.claude/autopilot.md` has a `## dev_url` section), and the PR's tier is Medium or High (the body's `## Risk` line, `Low|Medium|High: …`; no such line → the table in the `ship` skill, step 6a, on the PR's files) → candidate "`/deliver continue <N>`": nothing has tested this PR end to end, and `deliver` writes the scenarios from the PR and comments the dev result on it. Any of the three missing → no candidate.
    - **Plan** — `grep -c -- '- \[ \]' docs/superpowers/plans/*.md` (missing dir → skip). A plan whose title or filename matches this PR (head branch, PR title) and still has unchecked tasks → candidate "skipped step": list the unchecked task titles. Other plans with unchecked tasks → candidate "next plan", oldest file first, unless the plan already shipped. Check each such plan:
      ```bash
      d=$(basename <plan> | grep -oE '^[0-9]{4}-[0-9]{2}-[0-9]{2}')
@@ -59,7 +60,7 @@ A token starting with `--` is a flag; the one remaining token is the PR ref (num
    - **Release** — base is `dev` → `git rev-list --count origin/main..origin/dev`; non-zero → candidate "`/release`" with the count.
    - **Issue** — `gh issue list --assignee @me --state open --limit 5 --json number,title,labels`, excluding issues step 6 just closed.
 
-   Pick exactly one recommendation, in this priority: deliver > skipped step > deferred by the user > next plan > plan not written > release > follow-up (session or review) > issue.
+   Pick exactly one recommendation, in this priority: deliver > skipped step > deferred by the user > dev E2E > next plan > plan not written > release > follow-up (session or review) > issue.
 
 
 ## Output
