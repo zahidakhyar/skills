@@ -144,7 +144,7 @@ The seam check compares text. This runs the client against the server, before an
    ```
 2. On `SERVING`, `SendMessage` the client child:
    ```
-   E2E: the server runs at <base URL> (test accounts: <path>). Run the contract <contract path> through your app against it.
+   E2E: the server runs at <base URL> (test accounts: <path>) <several servers: one "<repo>: <base URL>, accounts <path>" per server>. Run the contract <contract path> through your app against it.
    - <worktree>/.e2e/scenarios.md already exists → reuse it unchanged. Otherwise write it: one scenario per contract endpoint your repo calls, plus at least one error case the contract defines. Each has an ID (S1…), the criterion it proves (what the user sees when that endpoint behaves as the contract says), numbered steps, the expected result. Keep .e2e/ out of git: add it to "$(git rev-parse --git-common-dir)/info/exclude".
    - Point your app at that URL through the env var the contract names, else the one your app reads for the API base URL. Start it on a free port (lsof -iTCP -sTCP:LISTEN -P), never stopping a process you did not start, run every scenario, stop what you started. That whole block goes through heavy.sh.
    - Web → the playwright-cli skill. That skill is not installed, or there is no UI → HTTP calls through your client code, and say so in result.md.
@@ -153,7 +153,7 @@ The seam check compares text. This runs the client against the server, before an
    or CANNOT RUN: <what is missing>.
    ```
 3. Read `result.md`, not the note. A failing scenario is a finding: compare what came back with the contract and send `FIX` to the side that deviates, as in the seam check. After any `FIX`, check the diff and re-run the seam check; after a server fix send `SERVE` again, then `E2E` again. Up to 2 rounds, counted apart from the seam check's, then carry the failure into the report.
-4. Always, whatever the outcome: `SendMessage` each server child `STOP: stop the app you started for SERVE and remove its compose project with its volumes (docker compose -p <name> down -v) or drop its database. Nothing of yours is running → nothing to do. End your turn with STOPPED.`
+4. Always, whatever the outcome: `SendMessage` each server child `STOP: stop the app you started for SERVE and remove its compose project with its volumes (docker compose -p <name> down -v) or drop its database. Nothing of yours is running → nothing to do. End your turn with STOPPED.` A server child that got `SERVE` and has not answered `STOPPED` (the run was interrupted) gets `STOP` before step 7 sends `/ship` and before step 8 archives it.
 5. Record the tested commit per repo (`git -C <repo root> rev-parse --short <branch>`). `CANNOT SERVE` or `CANNOT RUN` → there is no result: the report says `UNVERIFIED: local E2E, <reason>`.
 
 If this session has an advisor tool, call it once before leaving this step, after the last seam check and the local E2E, and before the report. Each child's advisor saw one repo only, so this is the one review in the flow with no second look. It reads only this conversation, so the contract and the server and client excerpts you compared must be in it, not just your conclusion. No advisor tool → skip it and add "seam check: no advisor" to the report.
