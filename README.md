@@ -212,6 +212,7 @@ Builds implementation plans in separate builder sessions while the current sessi
 - Two or more repos → locks a shared contract first, or uses `--contract <path>`.
 - One builder session per plan, each in its own worktree. Builders run on Sonnet by default; the coordinator suggests Opus per plan where it pays off, and `--opus` puts every builder on Opus.
 - When builders finish, runs a review-fix loop per repo and a combined cross-repo check, then has each builder `ship` its own PR when you say so.
+- Cross-repo builds also get a local E2E before shipping: the server builder starts its app on a free port with its own database, the client builder runs one scenario per contract endpoint against it. The result goes into the report, and after `ship` into the client PR's Test plan and a comment on every PR. An app that can't start locally is reported as `UNVERIFIED` and does not block the ship; a failing scenario asks you first.
 
 ```mermaid
 sequenceDiagram
@@ -231,10 +232,17 @@ sequenceDiagram
         C->>BE: REVIEW / FIX
         C->>FE: REVIEW / FIX
     end
-    C->>You: report per repo
+    C->>BE: SERVE (app on a free port, own database)
+    C->>FE: E2E (contract scenarios against BE)
+    FE-->>C: E2E n/N pass
+    C->>BE: STOP
+    C->>You: report per repo, local E2E result
     You->>C: ship it
     C->>BE: /ship --auto-fix --reviewed
     C->>FE: /ship --auto-fix --reviewed
+    C->>FE: E2E-COMMENT (Test plan lines, comment on every PR)
+    You->>C: merged
+    C->>You: suggest /deliver continue <FE PR> --with <BE PR> (same scenarios on dev)
 ```
 
 Once every PR of a cross-repo build is merged, it suggests one dev E2E across the repos: `/deliver continue <client PR> --with <other PRs>`.
@@ -319,7 +327,7 @@ The skills read their conventions from the repo they run in. None of these files
 | `package.json` scripts, `.github/workflows/*.yml` | `ship`, `pr-review`, `recheck` | Source of the typecheck, lint and test commands. A green CI check that already runs them is cited instead of re-run |
 | `dev` / `develop` branch | `ship`, `orchestrate` | Default PR target when present |
 | `CHANGELOG.md` | `release` | Updated on each release when present |
-| `.claude/autopilot.md` | `deliver`, `autopilot` | Local start command, dev URL hint, deploy signal, test-account source (drafted by `deliver` on its first run and committed in that PR). The `## Pickup` section opts the repo into `autopilot` |
+| `.claude/autopilot.md` | `deliver`, `autopilot`, `orchestrate` | Local start command, dev URL hint, deploy signal, test-account source (drafted by `deliver` on its first run and committed in that PR). The `## Pickup` section opts the repo into `autopilot` |
 
 ## Requirements
 
