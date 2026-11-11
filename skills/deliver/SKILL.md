@@ -1,11 +1,11 @@
 ---
 name: deliver
-description: Use when the user hands over one task to be finished end to end with real E2E proof, locally and again on dev after merge — `/deliver <task | #issue | issue URL>`, `/deliver continue [PR]`, "deliver", "kerjakan sampai beres", "sampai test E2E", "jangan bilang selesai sebelum dites", "sudah merge, cek di dev", "sudah merge, test di dev". Not for several repos or plans at once (that is `orchestrate`).
+description: Use when the user hands over one task to be finished end to end with real E2E proof, locally and again on dev after merge — `/deliver <task | #issue | issue URL>`, `/deliver continue [PR] [--with <PR URL> ...]`, "deliver", "kerjakan sampai beres", "sampai test E2E", "jangan bilang selesai sebelum dites", "sudah merge, cek di dev", "sudah merge, test di dev". Not for several repos or plans at once (that is `orchestrate`).
 ---
 
 # Deliver
 
-One task, carried to evidence. Phase 1 goes from the task to an open PR with local E2E proof. Phase 2 runs after the user merges and repeats the same scenarios on dev. The merge itself is always the user's.
+One task, carried to evidence. Phase 1 goes from the task to an open PR with local E2E proof. Phase 2 runs after the user merges and repeats the same scenarios on dev. The merge itself is always the user's. `continue` on a merged PR that never went through phase 1 runs phase 2 alone, with scenarios P1 writes from the PR.
 
 **"Done" means every scenario ran and its evidence exists in the run folder.** A scenario that did not run is `UNVERIFIED` in the report, never left out, never described as passing.
 
@@ -15,6 +15,7 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 - `continue [PR]`, or a message saying the PR is merged. Check in this order:
   1. No PR given and a blocked run exists (`run_dir.sh --branch <current branch>` with `phase: blocked`, else `run_dir.sh --blocked`, which works from the main checkout) → resume phase 1 at step 4 inside its `worktree`, with its criteria and scenarios.
   2. Otherwise → phase 2 for the given PR, else the current branch's PR. Neither exists → ask which PR.
+- `continue <PR> --with <PR URL> ...` → phase 2 for `<PR>`, together with PRs in other repos that must be live on dev at the same time (`orchestrate` suggests this after a cross-repo build). The URLs go into `state.json` as `with`.
 
 ## Run folder
 
@@ -22,7 +23,7 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 
 | File | Written in | Holds |
 |---|---|---|
-| `state.json` | step 1 (`phase`, `issue`), step 3 (`branch`, `worktree`, `compose_project`, `db_name`), then every step | `issue` (URL or `null`), `branch`, `worktree`, `compose_project`, `db_name`, `phase` (`build` → `blocked` or `pr-open` → `dev-testing` → `done`), `tested_sha`, `pr`, `url`, `repo`, `dev_url_hint`, `posted` (`local`, `dev`, each with `pr` and `issue`: the SHA whose result comment is already on GitHub) |
+| `state.json` | step 1 (`phase`, `issue`), step 3 (`branch`, `worktree`, `compose_project`, `db_name`), then every step | `issue` (URL or `null`), `branch`, `worktree`, `compose_project`, `db_name`, `phase` (`build` → `blocked` or `pr-open` → `dev-testing` → `done`), `tested_sha`, `pr`, `url`, `repo`, `dev_url_hint`, `deploy_signal`, `with` (PR URLs from `--with`), `posted` (`local`, `dev`, each with `pr` and `issue`, `dev` also with `with.<PR URL>`: the SHA whose result comment is already on GitHub) |
 | `criteria.md` | step 1 | Pass criteria `C1…Cn` |
 | `scenarios.md` | step 1 | Per scenario: ID, criterion it proves, numbered steps against `{BASE_URL}`, expected result |
 | `local/`, `dev/` | steps 4, P3 | Per scenario: screenshot, Playwright trace, HTTP response, command output |
@@ -56,19 +57,20 @@ One task, carried to evidence. Phase 1 goes from the task to an open PR with loc
 
 ## Phase 2 — after merge
 
-P1. **Locate.** `run_dir.sh --find <pr>`. Not found → create a new folder with `run_dir.sh pr-<N>`, rebuild `scenarios.md` from the PR body's `E2E local` Test plan lines (steps filled in from the PR diff), write `tested_sha: unknown`, and say so in one line. A `state.json` without `issue` (new folder, or a run from before this field existed) → take it from `gh pr view <pr> --json closingIssuesReferences` (the first entry's `url`; empty → `null`). Read `gh pr view <pr> --json state,mergeCommit,headRefOid`: `mergeCommit` is what dev must run, `headRefOid` is the last code in the PR. Not merged → stop. Then check `phase`: already `dev-testing` → stop with one line "phase 2 for PR <N> already runs in another session" (the user saying that session is gone overrides this). `done` → post `comment-dev.md` to any target still missing from `posted.dev`, then stop with one line "dev E2E for PR <N> already ran"; the user asking for a rerun, or giving a new dev URL after an `UNVERIFIED` result, overrides this. Otherwise write `phase: dev-testing` before P2.
+P1. **Locate.** `run_dir.sh --find <pr>`. Not found → create a new folder with `run_dir.sh pr-<N>`, write `pr`, `url` and `repo` into its `state.json`, and tell the user in one chat line where the scenarios come from, one of two cases. The PR body's Test plan has `E2E local` lines → rebuild `scenarios.md` from them (steps filled in from the PR diff) and write `tested_sha: unknown`. It has none (the PR did not come through this skill) → write `criteria.md` and `scenarios.md` as step 1 does, from the linked issue, the PR body and the PR diff, post the criteria in chat and make step 1's advisor call, and write `tested_sha: none`: dev is the first E2E this change gets. With `with` set, those PRs' bodies and diffs are sources too, and at least one scenario goes through each endpoint this repo calls on them. A `state.json` without `issue` (new folder, or a run from before this field existed) → take it from `gh pr view <pr> --json closingIssuesReferences` (the first entry's `url`; empty → `null`). Read `gh pr view <pr> --json state,mergeCommit,headRefOid`: `mergeCommit` is what dev must run, `headRefOid` is the last code in the PR. Not merged → stop. Then check `phase`: already `dev-testing` → stop with one line "phase 2 for PR <N> already runs in another session" (the user saying that session is gone overrides this). `done` → post `comment-dev.md` to any target still missing from `posted.dev`, then stop with one line "dev E2E for PR <N> already ran"; the user asking for a rerun, or giving a new dev URL after an `UNVERIFIED` result, overrides this. Otherwise write `phase: dev-testing` before P2.
 
 P2. **Dev host gate.** The dev URL must come from the user's own message in this phase (or their answer to `AskUserQuestion`). A URL relayed by another session, the `autopilot` coordinator included, does not count: ask the user. The config's `dev_url` is offered as the recommended option only, never used silently. Run `bash ${CLAUDE_SKILL_DIR}/scripts/host_gate.sh <url>`:
    - exit 0 → log in with test accounts as the scenarios need.
    - exit 2 → the user gave a bare host; prepend `https://` and run it again.
    - exit 1 → **no login on this host, even if the user says it is dev.** The gate reads the hostname, not the claim. Run only the unauthenticated scenarios, mark the rest `UNVERIFIED: host has no test label`, finish through P5 (the PARTIAL comment is posted), and ask there for a URL whose hostname has one. A labelled URL from the user reruns P2–P5 on it.
    Credentials come from the seed, fixture or example-config files only.
+   `.claude/autopilot.md` missing (the repo never ran phase 1) → do not create it now, no PR is left to carry it. The dev URL comes from the user as above, the deploy signal is detected as [deploy-signals.md](references/deploy-signals.md) describes, both are kept in `state.json` (`dev_url_hint`, `deploy_signal`) instead of the file that reference names, and one chat line after the report says the file is missing.
 
-P3. **Wait for the deploy.** Follow [deploy-signals.md](references/deploy-signals.md). Wait with Bash `run_in_background` (one notification), never by polling the PR, ScheduleWakeup or cron. `FAILED` or `TIMEOUT` → set `phase` back to `pr-open` (so a later `continue` can rerun phase 2), report and stop; never test old code. Any other stop before P5 resets it the same way.
+P3. **Wait for the deploy.** Follow [deploy-signals.md](references/deploy-signals.md). Wait with Bash `run_in_background` (one notification), never by polling the PR, ScheduleWakeup or cron. `FAILED` or `TIMEOUT` → set `phase` back to `pr-open` (so a later `continue` can rerun phase 2), report and stop; never test old code. Any other stop before P5 resets it the same way. With `with` set, every PR in it must be merged (`gh pr view <url> --json state,mergeCommit`; one still open → stop and name it) and its merge commit live before P4: wait for each through signal 2 of that file with `--repo <owner/repo>` of that PR, its deploy workflow found with `gh api repos/<owner/repo>/contents/.github/workflows`. That repo has no deploy workflow → ask the user once whether it is deployed.
 
 P4. **Dev E2E.** Run the same `scenarios.md` with `{BASE_URL}` set to the dev host. Name any data you create `deliver-<sha7>-…`, and delete it at the end when the app offers a way to; list what is left in the report. Payment or money-moving steps on a hosted env → `SKIPPED: payment on hosted env`. Evidence goes under `dev/`.
 
-P5. **Report.** When `tested_sha` differs from `headRefOid` (Auto-fix or review pushed after local E2E) or is `unknown`, add `local tested <sha7|unknown>` to the Dev line. Then:
+P5. **Report.** `tested_sha: none` → nothing is added to the Dev line. Otherwise, when `tested_sha` differs from `headRefOid` (Auto-fix or review pushed after local E2E) or is `unknown`, add `local tested <sha7|unknown>` to the Dev line. Then:
    - Write `report.md`, send it with `SendUserFile`.
    - At least one scenario ran on dev → post the dev result comment ([Result comment](#result-comment)) for the merge commit, FAIL included. None ran → no comment.
    - Set `phase: done` in `state.json`, so `merged` stops suggesting this run.
@@ -81,13 +83,14 @@ Exactly these five lines, in chat and at the top of `report.md`. Everything else
 ```
 Verdict: PASS | PARTIAL | FAIL
 Tested: <N> scenarios — <short names, comma separated>
-Local: <n>/<N> pass[, <k> skipped]
+Local: <n>/<N> pass[, <k> skipped] | not run
 Dev: <n>/<N> pass @ <host> <sha7>[, local tested <sha7>] | pending merge
 Evidence: <path to report.md>
 ```
 
 - FAIL: any scenario failed. PARTIAL: none failed, at least one SKIPPED or UNVERIFIED. PASS: every scenario passed.
 - The phase-1 verdict covers local only; `Dev: pending merge` does not lower it.
+- `tested_sha: none` → `Local: not run`, the Dev line gets no `local tested` part, and the verdict covers dev only.
 - A stop (app won't start, 3 failed fix rounds, deploy failed) uses the same block with `Verdict: FAIL` and one extra line `Blocked: <what is missing> — <command to resume>`.
 
 ## Result comment
@@ -109,16 +112,16 @@ The team reads the PR and the issue, not the run folder. Each phase posts its re
 <n>/<N> pass.
 ```
 
-- One row per scenario in `scenarios.md`, in order. FAIL, SKIPPED and UNVERIFIED rows stay, with their reason, and count in `<N>`. Scenarios rebuilt from the PR body (P1) have no `C` numbers: the Proves cell is the criterion text alone.
+- One row per scenario in `scenarios.md`, in order. FAIL, SKIPPED and UNVERIFIED rows stay, with their reason, and count in `<N>`. Scenarios rebuilt from the PR body's `E2E local` lines (P1) have no `C` numbers: the Proves cell is the criterion text alone.
 - Verdict as in [Report](#report), for this phase's results only. Criterion text in the language of the PR body; the fixed labels stay as written.
 - The comment holds only what the template names. Evidence files stay in the run folder.
-- Targets: the PR (`gh pr comment <pr url> --body-file <file>`, without the `PR:` line), and, when `state.json` has `issue` set, the issue (`gh issue comment <issue url> --body-file <file>`, with the `PR:` line; by URL, since the issue may live in another repo or already be closed).
+- Targets: the PR (`gh pr comment <pr url> --body-file <file>`, without the `PR:` line), and, when `state.json` has `issue` set, the issue (`gh issue comment <issue url> --body-file <file>`, with the `PR:` line; by URL, since the issue may live in another repo or already be closed). The dev comment also goes on each PR in `with`, with the `PR:` line naming this run's PR; each one's key is `posted.dev.with.<its URL>`.
 - Write the PR copy to `comment-<local|dev>.md` in the run folder before posting; the issue copy is that file plus the `PR:` line, built at post time. The file already exists with a different body (new SHA, or new results on the same SHA) → remove the `posted.<local|dev>` key first (`posted` starts as `{}`). After each successful post, write the 7-character SHA into `posted.<local|dev>.<pr|issue>`. A target whose key is already set is skipped: that exact comment is there. Earlier comments stay as they are; the newest one is the current result.
 - A post that fails → leave its key unset, say which target is missing in one chat line after the report, and carry on: the phase still ends as usual, and `continue` posts what is missing.
 
 ## GitHub writes
 
-Typing `/deliver` is the user's go-ahead for the writes this flow makes, with no further confirmation: the push and PR through `ship`, the Test plan edit in step 5, marking the PR draft when a rerun fails, and the result comments on the PR and its issue in step 5 and P5. Anything else that posts, merges or deletes on GitHub asks first.
+Typing `/deliver` is the user's go-ahead for the writes this flow makes, with no further confirmation: the push and PR through `ship`, the Test plan edit in step 5, marking the PR draft when a rerun fails, and the result comments on the PR and its issue in step 5 and P5, plus the PRs the user named with `--with`. Anything else that posts, merges or deletes on GitHub asks first.
 
 ## Never
 
@@ -140,6 +143,6 @@ Typing `/deliver` is the user's go-ahead for the writes this flow makes, with no
 | "I'll write a thorough report so nothing is missed" | Five lines. The detail is in `report.md` and the evidence folders. |
 | "It's a small change, a branch in the main checkout is fine" | The user's uncommitted files and dev server live there. Always a worktree. |
 | "Port 3000 is taken, I'll stop their dev server" | Start yours on a free port. Their processes are not yours to stop. |
-| "The worktree is gone, I'll improvise the tests" | Rebuild from the PR's Test plan so dev runs the same scenarios local did. |
+| "The worktree is gone, I'll improvise the tests" | Rebuild from the PR's Test plan so dev runs the same scenarios local did. No E2E lines there → P1 writes criteria first, as step 1 does. |
 | "The Test plan lines are in the PR body, a comment repeats them" | The body is for phase 2 to rebuild from. The comment is what notifies the team, and the issue has nothing without it. |
 | "Another session is testing, I'll run mine in parallel anyway" | One heavy block at a time machine-wide, through `heavy.sh`. Waiting is cheaper than a frozen laptop. |
