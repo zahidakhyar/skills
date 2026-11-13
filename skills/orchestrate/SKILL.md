@@ -11,7 +11,7 @@ One plan in one repo is just the N=1 case of the same flow.
 
 Children execute their plan **inline** (`superpowers:executing-plans`) by default, whatever execution skill the plan recommends. This skill already reviews at the end (step 5 review-fix loop, step 6 seam check, the coordinator's diff review, the child's advisor), so the per-task review of `superpowers:subagent-driven-development` mostly duplicates it, while costing a cold-start subagent per task and handing tasks it judges mechanical to a cheap model. Inline, the child's own model writes every line, so the model choice below is what actually shapes the code. Exception: a plan with more than 10 tasks uses `subagent-driven-development`, because one context carrying that many tasks degrades by the last ones, and a fresh subagent per task is worth its cost there.
 
-Children run on Sonnet. Quality comes from two backstops rather than a pricier default: the child's advisor (a stronger reviewer model, from `advisorModel` in the user's Claude Code settings; without it the checkpoints are skipped) at fixed checkpoints in the builder prompt, and a temporary escalation to the coordinator's model when a child is stuck (see "Escalation").
+Children run on Sonnet. Quality comes from three backstops rather than a pricier default: the child's advisor (a stronger reviewer model, from `advisorModel` in the user's Claude Code settings; without it the checkpoints are skipped) at fixed checkpoints in the builder prompt, a review of each finished branch by a fresh reviewer on the coordinator's model (step 5), and a temporary escalation to the coordinator's model when a child is stuck (see "Escalation").
 
 The model is set **per child**, because in cross-repo work usually only one side needs it: a UI-heavy frontend plan benefits from Opus, while the backend child does fine on Sonnet with its advisor. An Opus child costs several times a Sonnet one, so the coordinator recommends it per plan (step 3) and the user decides. `--opus` skips the question and runs every child on Opus.
 
@@ -85,7 +85,7 @@ Always address a child with `SendMessage` `to` = its `local_…` id from the `st
 
 - `BLOCKED: <question>` → answer it from the plans, the contract, or the code. If they cannot settle it, ask the user and send the answer to the child.
 - `CONTRACT: <proposed change>` → decide with the user. Accepted → edit the contract file, then `SendMessage` every affected child: the exact change and the contract path. Rejected → tell the requesting child to build against the contract as it stands.
-- `DONE` → review that repo: `git -C <repo root> log --oneline <base>..<branch>` and `git -C <repo root> diff <base>...<branch>` against the plan's Goal. A finding to fix → `SendMessage` it to that child.
+- `DONE` → review that repo: `git -C <repo root> log --oneline <base>..<branch>` and `git -C <repo root> diff <base>...<branch>` against the plan's Goal. A finding to fix → `SendMessage` it to that child. This pass checks that the branch does what the plan says; the bug review is step 5's, by a separate reviewer.
 
 A note is the child's claim, not proof. Check the diff before telling the user anything is done. A DONE line with "no advisor" means the child ran without its quality backstop; review that diff more closely and tell the user.
 
@@ -97,24 +97,40 @@ Two signals mean Sonnet is the bottleneck for this child, not the plan:
 - the same child sends `BLOCKED` twice on the same task, or
 - the review-fix loop (step 5) reaches round 3 with High/Medium still open.
 
-Then, before sending the answer or the round-3 `REVIEW`: `mcp__ccd_session_mgmt__set_session_model(<child id>, <this session's own model id>)`. The child is idle while it waits, so the switch applies to exactly the turn you are about to start. Using the coordinator's own model avoids an approval prompt and the app's rule that a child cannot outrank its parent. When that turn ends, switch the child back to Sonnet, and mention the escalation in the final report. Escalate one child at a time and only for that turn; escalating as a default just turns the whole run into an Opus run.
+Then, before sending the answer or the round-3 `FIX`: `mcp__ccd_session_mgmt__set_session_model(<child id>, <this session's own model id>)`. The child is idle while it waits, so the switch applies to exactly the turn you are about to start. Using the coordinator's own model avoids an approval prompt and the app's rule that a child cannot outrank its parent. When that turn ends, switch the child back to Sonnet, and mention the escalation in the final report. Escalate one child at a time and only for that turn; escalating as a default just turns the whole run into an Opus run.
 
 ### 5. Review-fix loop per repo (automatic)
 
 Runs without asking the user, once every child is DONE. The goal is branches that reach the PR with no **High** or **Medium** finding left, so the PR review is a formality rather than the first real look.
 
-Same cap as the build: **at most 2 children reviewing at once**, the rest wait for a free slot. Running two in parallel means the coordinator wakes only when both have ended their round; handle both `REVIEWED` notes together, then start the next round for whichever still needs one.
+The review runs in a **reviewer subagent of this session**, never in the child. A child reviewing its own branch brings the assumptions it built with, on the model that wrote the code. The reviewer starts from its brief alone and runs on the coordinator's model: pass this session's tier (`opus`, `fable`, …, from step 3's `get_session("self")`) as the `Agent` call's `model`, since an omitted `model` can fall back to a cheaper configured default. The child only fixes.
 
-Before the first round, settle two things per repo from `git -C <repo root> diff --name-only <base>...<branch>`:
-- Effort: the risk tier from the table in the `ship` skill, step 6a. Low → `low`, Medium → `medium`, High → `high`.
-- Security review: needed when the diff matches the condition in `ship` step 6c (auth, endpoint input, queries built from input, upload, user HTML, secrets/env).
+Same cap as the build: **at most 2 repos in this loop at once**, the rest wait for a free slot. A reviewer runs tests on this machine like a child does, so it counts against the cap, and a repo's reviewer never runs while its child is still working. A reviewer's result arrives when it finishes; a child's `FIXED` note arrives once every child is idle.
 
-For each child, up to 3 rounds:
-1. `SendMessage` the child: `REVIEW: run /code-review <effort> <branch> against base <base>` + (round 1, security review needed) `and /security-review` + `. Fix only the High and Medium findings this branch introduced. A bug the branch did not introduce: list it as Pre-existing, leave the code alone. Skip Low and Nit. Then <final verification>, then commit the fixes. End your turn with REVIEWED: <fixed count> fixed, remaining High/Medium: <list or none>, Pre-existing: <list or none>.`
-2. On `REVIEWED`, check it yourself: `git -C <repo root> diff <commit before the round>..<branch>` (the fixes are real and in scope) and that verification passed.
-3. Remaining High/Medium, or the fix diff shows a new problem → next round. None → this repo is clean, move to the next child.
+Before the first round, settle per repo:
+- Effort, from `git -C <repo root> diff --name-only <base>...<branch>`: the risk tier from the table in the `ship` skill, step 6a. Low → `low`, Medium → `medium`, High → `high`.
+- Security review, from the same list: needed when the diff matches the condition in `ship` step 6c (auth, endpoint input, queries built from input, upload, user HTML, secrets/env).
+- The child's worktree path: `git -C <repo root> worktree list --porcelain`, the entry whose `branch` is the child's.
 
-Round 3 runs escalated (step 4, "Escalation"). After 3 rounds with High/Medium still open, stop looping on that repo and carry the findings into the report. A loop that keeps failing is usually a plan or contract problem, which more automated rounds will not fix.
+For each repo, up to 3 rounds:
+1. Spawn the reviewer: `Agent`, `subagent_type: "general-purpose"`, `model` = this session's tier, `prompt` = the reviewer brief below, filled in. Put nothing else in it: not the child's DONE note, not your own reading of the diff. Round 1 with a security review needed → in the same message a second such `Agent` call: "The repo is the checkout at <worktree path>, branch <branch>, base <base>. Your shell starts in another folder and `cd` does not carry over between commands: begin every command with `cd <worktree path> &&`, including the ones the skill tells you to run. Read only: no edit, commit or checkout. Invoke the `security-review` skill and return its markdown report as your final reply." It needs its own subagent because that skill ends the turn it runs in. Give each of its findings a severity label and treat them like the reviewer's.
+2. No High or Medium in the findings → this repo is clean, move to the next. Otherwise note `git -C <repo root> rev-parse <branch>` as the commit before the round, then `SendMessage` the child: `FIX: <every High and Medium finding, as the reviewer wrote it>. Check each one against the code first. Real → fix it. Wrong → leave the code alone and list it under disputed with your evidence (file:line, test output). Leave Low, Nit and Pre-existing alone. Then <final verification>, then commit. End your turn with FIXED: <count> fixed, disputed: <finding + evidence, or none>.`
+3. On `FIXED`, check it yourself: `git -C <repo root> diff <commit before the round>..<branch>` (the fixes are real and in scope) and that verification passed. A disputed finding: read the child's evidence against the code. It holds → drop the finding. It does not → send it again as `FIX` with what the evidence misses; that counts as the next round.
+4. The child committed fixes → next round: a new reviewer, with the round 2+ lines of the brief. It re-checks every earlier finding and reviews the fix commits, because a fix that does exactly what the finding asked is where the next bug tends to sit. Nothing committed and every dispute held → no High or Medium is left, the repo is clean.
+
+Round 3's `FIX` runs escalated (step 4, "Escalation"). After 3 rounds with High/Medium still open, stop looping on that repo and carry the findings into the report. A loop that keeps failing is usually a plan or contract problem, which more automated rounds will not fix.
+
+#### Reviewer brief
+
+```
+You review branch <branch> against base <base> in the checkout at <worktree path>. Your shell starts in another folder and `cd` does not carry over between commands: begin every command with `cd <worktree path> &&`, including the ones a skill tells you to run, and read files by absolute path. Read only: no edit, commit, checkout, stash, push or GitHub comment.
+<Round 1:> Run /code-review <effort> <branch> against base <base>. No Skill tool, or that skill is not in your list → review `git diff <base>...<branch>` yourself at that effort: read every changed file in full, and the callers of each signature, query or shared helper that changed.
+<Round 2+:> Earlier findings: <the findings sent in the last FIX, and any the child disputed>. Fix commits: <commit before the round>..<branch>. For each earlier finding answer fixed or still open, with the line that shows it. Then review `git diff <commit before the round>..<branch>` for bugs the fixes introduced: follow what the changed lines touch (locks and transactions, rule or statement order, connection use, callers).
+<Only when heavy.sh exists; write its absolute path:> Run every test, typecheck or build as `bash <heavy.sh path> <command>`.
+Reply with the findings only, most severe first, one per line:
+<High|Medium|Low|Nit|Pre-existing> `path:line`: <the defect>. Fails when: <input or state → wrong result>.
+High = bug, data loss or security hole. Medium = wrong under realistic input. Pre-existing = a bug this branch did not introduce. Nothing found → reply "No findings."
+```
 
 ### 6. Combined review and fix (2+ repos, automatic)
 
@@ -160,7 +176,7 @@ If this session has an advisor tool, call it once before leaving this step, afte
 
 ### 7. Report and ship
 
-Report to the user: per repo the branch, commits, verification result, review rounds run, and what was fixed; then anything still open with severity labels (**High**, **Medium**, **Low**, **Nit**), and the Pre-existing bugs from the `REVIEWED` lines as issue candidates. "Clean" means `/code-review` and the seam check found nothing High or Medium, not that the code is proven bug-free; say it that way.
+Report to the user: per repo the branch, commits, verification result, review rounds run with the model that reviewed (this session's), and what was fixed; then anything still open with severity labels (**High**, **Medium**, **Low**, **Nit**), and the Pre-existing bugs from the reviewers' findings as issue candidates. "Clean" means `/code-review` and the seam check found nothing High or Medium, not that the code is proven bug-free; say it that way.
 
 Branches stay unmerged and unpushed until the user says to ship. Then `SendMessage` each child "Run /ship with base <base> --auto-fix --reviewed"; each child opens its own PR from its own repo, and Auto-fix keeps CI and review comments handled there. `--reviewed` skips `/ship`'s own review, since step 5 already did it; its typecheck, lint and tests still run. Merging stays the user's call.
 
@@ -187,7 +203,7 @@ An Auto-fix event about this "## E2E" comment needs no action. End your turn wit
 ```
 Fill `<commit line>` yourself from step 6's tested commits, client first: `` `<sha7>`, `<server repo>@<sha7>` ``. Those are the commits E2E ran on; `/ship` may have added a format commit on top, and the comment does not claim it. The line format and the comment shape are the `deliver` skill's, so `/deliver continue` after the merge (step 8) rebuilds its scenarios from those lines and posts its dev result under this comment.
 
-`/ship`'s gate can end three ways; report each repo's: a PR opened, a draft PR (High tier with an unverified test), or stopped before the push (a check still red). Stopped → the child's message carries the failing output; treat it like a `REVIEW` round that left a finding open.
+`/ship`'s gate can end three ways; report each repo's: a PR opened, a draft PR (High tier with an unverified test), or stopped before the push (a check still red). Stopped → the child's message carries the failing output; treat it like a step 5 round that left a finding open.
 
 ### 8. Cleanup after merge
 
@@ -207,14 +223,14 @@ You are the builder for plan <absolute plan path> (<N> tasks) in repo <repo root
 1. You are already on your own worktree branch, cut from <base>. Use <execution skill> to execute every task in the plan. Decide on your own between tasks; do not ask the user.
 <Only for an Opus child running subagent-driven-development:> The user chose quality over cost for this run. Override that skill's Model Selection: dispatch every subagent (implementers, reviewers, fixers) with model <opus id>, including tasks that look mechanical.
 2. Each task: its own `Run:` commands from the plan, exit 0, then commit. After the last task: <final verification>, exit 0.
-<Only when `${CLAUDE_SKILL_DIR}/../deliver/scripts/heavy.sh` exists; write its absolute path:> Run every install, test, typecheck and build command as `bash <heavy.sh path> <command>` (a command with `&&`, a pipe or an env prefix: `bash <heavy.sh path> sh -c '<command>'`), in REVIEW and FIX rounds too. It holds a machine-wide lock, so builders in other repos never run two heavy commands at once.
+<Only when `${CLAUDE_SKILL_DIR}/../deliver/scripts/heavy.sh` exists; write its absolute path:> Run every install, test, typecheck and build command as `bash <heavy.sh path> <command>` (a command with `&&`, a pipe or an env prefix: `bash <heavy.sh path> sh -c '<command>'`), in FIX rounds too. It holds a machine-wide lock, so builders in other repos never run two heavy commands at once.
 3. Report to the coordinator only in these cases:
    - BLOCKED: <the question>, when the plan, the contract, and the code cannot settle it.
    - CONTRACT: <the exact change you need and why>, when building to the contract as written is impossible or wrong.
    For these two, first send SendMessage to "<coordinator id>" with that line as the first line, then end your turn and wait for the reply. A final message alone does not reach the coordinator while other builders are still working.
    - DONE: when all tasks and the final verification pass, end your turn with a final message whose first line is: DONE: <branch from `git branch --show-current`>, <commit count> commits, verification passed. The coordinator sees only its first ~400 characters.
-4. If you have an advisor tool, call it at these checkpoints, not only when you feel like it: before you start the first task, before reporting DONE, before sending BLOCKED or CONTRACT, and before ending a REVIEW round that still leaves a High or Medium finding. Its whole value is a second look at the moments a wrong call is expensive. If it settles a BLOCKED question by pointing at the plan, the contract, or the code, carry on without sending it; a product or scope decision it can only guess at still goes to the coordinator. No advisor tool in this session → skip this step and add "no advisor" to your DONE line.
-5. After DONE, the coordinator sends REVIEW and FIX instructions, and for a cross-repo run SERVE, E2E, STOP and E2E-COMMENT. Do exactly what they say, commit any code change, and end your turn with the reply line the instruction asks for. Where an instruction says how to run a command (with or without heavy.sh), it wins over rule 2. These are part of your job, not a new task: stay on the same branch. After the PR exists, an Auto-fix event about a comment that starts with "## E2E" needs no action.
+4. If you have an advisor tool, call it at these checkpoints, not only when you feel like it: before you start the first task, before reporting DONE, before sending BLOCKED or CONTRACT, and before ending a FIX round in which you dispute a finding or leave one unfixed. Its whole value is a second look at the moments a wrong call is expensive. If it settles a BLOCKED question by pointing at the plan, the contract, or the code, carry on without sending it; a product or scope decision it can only guess at still goes to the coordinator. No advisor tool in this session → skip this step and add "no advisor" to your DONE line.
+5. After DONE, the coordinator sends FIX instructions (findings from a separate reviewer; you do not review your own branch), and for a cross-repo run SERVE, E2E, STOP and E2E-COMMENT. Do exactly what they say, commit any code change, and end your turn with the reply line the instruction asks for. Where an instruction says how to run a command (with or without heavy.sh), it wins over rule 2. These are part of your job, not a new task: stay on the same branch. After the PR exists, an Auto-fix event about a comment that starts with "## E2E" needs no action.
 No push, no merge, no PR, no GitHub comment, no edits outside the plan and the coordinator's instructions, until the coordinator says so.
 ```
 
@@ -229,8 +245,10 @@ No push, no merge, no PR, no GitHub comment, no edits outside the plan and the c
 | Prompt says "the plan above" or "as discussed" | Children never saw this conversation; name every path and value |
 | Trusting a DONE note | Read the diff before reporting |
 | Two children writing in the same repo | One child per repo; run same-repo plans in sequence |
-| More than 2 children building or reviewing at once | Cap at 2; local `tsc`/tests across 3+ repos can exhaust a small machine's RAM |
-| Trusting REVIEWED / FIXED without the fix diff | A child can fix past High/Medium or past the plan; check the diff stays in scope |
+| More than 2 repos building or in review at once | Cap at 2; local `tsc`/tests across 3+ repos can exhaust a small machine's RAM |
+| Asking the child to review its own branch | It repeats the assumptions it built with; step 5 spawns a fresh reviewer subagent on the coordinator's model |
+| Passing the reviewer the DONE note or your own read of the diff | It then confirms what it was told; the brief carries paths, base, branch and effort only |
+| Trusting FIXED without the fix diff | A child can fix past High/Medium or past the plan; check the diff stays in scope |
 | Sending `/ship` without `--reviewed` | The branch gets a second full review on top of step 5 |
 | Looping forever on a stubborn finding | Stop after the round cap and report it; it is likely a plan or contract issue |
 | Calling the result "bug-free" | Say no High/Medium findings remain from review and seam check |
