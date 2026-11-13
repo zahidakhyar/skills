@@ -26,12 +26,15 @@ head=$(gh pr view "$PR" --json headRefOid -q .headRefOid)
 # Baseline = the commit the previous review looked at.
 # Two marker shapes: a plain "reviewed: <sha>" comment (older runs, reviewer-loop)
 # or the hidden "<!-- reviewed: <sha> -->" line inside a review body. Newest wins.
+# Only my own markers count: teammates run the same skill, and their marker at
+# head would make a PR I never reviewed look "unchanged".
+me=$(gh api user -q .login)
 baseline=$( {
-  gh api --paginate "repos/$repo/issues/$PR/comments" -q '
-    .[] | select(.body | test("^reviewed:"))
+  gh api --paginate "repos/$repo/issues/$PR/comments" | jq -r --arg me "$me" '
+    .[] | select(.user.login == $me and (.body | test("^reviewed:")))
     | "\(.created_at) \(.body | sub("^reviewed:\\s*"; "") | split("\n")[0] | gsub("\\s"; ""))"'
-  gh api --paginate "repos/$repo/pulls/$PR/reviews" -q '
-    .[] | select(.state != "PENDING")
+  gh api --paginate "repos/$repo/pulls/$PR/reviews" | jq -r --arg me "$me" '
+    .[] | select(.state != "PENDING" and .user.login == $me)
     | select(.body | test("<!-- *reviewed: *[0-9a-f]+ *-->"))
     | "\(.submitted_at) \(.body | capture("<!-- *reviewed: *(?<sha>[0-9a-f]+) *-->").sha)"'
 } | sort | tail -1 | cut -d" " -f2)
@@ -43,7 +46,6 @@ baseline_source="marker"
 # "unchanged". Anchor on my own reviews that carry a body or a top-level
 # inline comment; replies (in_reply_to_id set) never qualify.
 if [ -z "$baseline" ]; then
-  me=$(gh api user -q .login)
   anchored=$(gh api --paginate "repos/$repo/pulls/$PR/comments" \
     | jq -sc '[.[][] | select(.in_reply_to_id == null) | .pull_request_review_id]')
   baseline=$(gh api --paginate "repos/$repo/pulls/$PR/reviews" \

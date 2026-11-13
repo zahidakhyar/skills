@@ -90,12 +90,27 @@ want "review marker" '.commits | length' 1
 want "review marker" .changed_files '["fix.txt"]'
 
 # a newer plain "reviewed:" comment beats an older review marker
-fixtures "$C" "[{\"created_at\":\"2026-02-01T00:00:00Z\",\"body\":\"reviewed: $C\\nnotes\"}]" \
+fixtures "$C" "[{\"user\":{\"login\":\"me\"},\"created_at\":\"2026-02-01T00:00:00Z\",\"body\":\"reviewed: $C\\nnotes\"}]" \
   "[$(marker_review "$B" 2026-01-01T00:00:00Z)]" '[]'
 out=$(state)
 want "newest marker wins" .baseline "\"$C\""
 want "newest marker wins" .unchanged true
 want "newest marker wins" .commits '[]'
+
+# a teammate's newer markers at head do not move my baseline
+fixtures "$C" "[{\"user\":{\"login\":\"teammate\"},\"created_at\":\"2026-02-01T00:00:00Z\",\"body\":\"reviewed: $C\"}]" \
+  "[$(marker_review "$B" 2026-01-01T00:00:00Z),
+    {\"id\":2,\"state\":\"APPROVED\",\"user\":{\"login\":\"teammate\"},\"commit_id\":\"$C\",\"submitted_at\":\"2026-02-02T00:00:00Z\",\"body\":\"Approve.\\n<!-- reviewed: $C -->\"}]" '[]'
+out=$(state)
+want "teammate markers" .baseline "\"$B\""
+want "teammate markers" .unchanged false
+want "teammate markers" '.commits | length' 1
+
+# only a teammate reviewed: I have no baseline
+fixtures "$C" '[]' "[{\"id\":2,\"state\":\"APPROVED\",\"user\":{\"login\":\"teammate\"},\"commit_id\":\"$C\",\"submitted_at\":\"2026-02-02T00:00:00Z\",\"body\":\"Approve.\\n<!-- reviewed: $C -->\"}]" '[]'
+out=$(state)
+want "teammate only" .baseline_source '"none"'
+want "teammate only" .baseline null
 
 # a pending review's marker does not count
 fixtures "$C" '[]' "[{\"id\":1,\"state\":\"PENDING\",\"user\":{\"login\":\"me\"},\"commit_id\":\"$B\",\"submitted_at\":null,\"body\":\"<!-- reviewed: $B -->\"}]" '[]'
