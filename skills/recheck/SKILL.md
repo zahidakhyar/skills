@@ -7,7 +7,7 @@ description: Re-review a pull request after the author pushed fix commits, in an
 
 A second pass over a PR that was already reviewed. The value here is narrow and specific: **deciding what the new commits actually changed about your earlier findings.** A fresh full review would re-derive things you already know and, worse, tends to soften prior findings that nobody actually fixed. First review → `/pr-review`.
 
-Argument: `/recheck <PR number|URL>`. Missing → list open PRs carrying a `reviewed:` marker and ask which one.
+Argument: `/recheck <PR number|URL>`. Missing → list open PRs carrying a `reviewed:` marker of your own and ask which one.
 
 Needs `gh` (authenticated) and `jq`. The repo can be any language — gates are detected from the repo, never assumed from habit.
 
@@ -23,7 +23,7 @@ Severity labels, body shape and comment style follow `${CLAUDE_SKILL_DIR}/../pr-
 
 Returns one JSON object: `baseline`, `baseline_source`, `head`, `force_pushed`, `unchanged`, `commits[]`, `changed_files[]`. Three things it handles that are easy to get wrong by hand:
 
-- **Baseline** = the commit the last review saw. It prefers the newest `reviewed: <sha>` marker, whether the hidden `<!-- reviewed: <sha> -->` line in a review body (what §7 writes) or a plain `reviewed: <sha>` comment (older runs, `reviewer-loop`), falling back to the newest review you submitted that has a body or a top-level inline comment. Thread replies also create review records, stamped with the head they were posted on, so the script skips them. `baseline_source: "none"` → this PR was never reviewed; stop and point at `/pr-review`.
+- **Baseline** = the commit the last review saw. It prefers your own newest `reviewed: <sha>` marker (a teammate's marker is ignored, since they run the same skill on the same PR), whether the hidden `<!-- reviewed: <sha> -->` line in a review body (what §7 writes) or a plain `reviewed: <sha>` comment (older runs, `reviewer-loop`), falling back to the newest review you submitted that has a body or a top-level inline comment. Thread replies also create review records, stamped with the head they were posted on, so the script skips them. `baseline_source: "none"` → this PR was never reviewed; stop and point at `/pr-review`.
 - **`force_pushed: true`** → the branch was rewritten and the baseline commit is gone from history, so a `baseline..head` delta is fiction. Say so and review the PR as a whole instead; a delta computed across a rebase silently drops real changes.
 - **`changed_files` excludes base-branch merges.** When an author merges `main` in, a naive diff hands you hundreds of upstream files. Reviewing those as if the author wrote them wastes the pass and buries the actual fix.
 

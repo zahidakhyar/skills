@@ -17,6 +17,10 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - `deliver` passes the issue to `ship`, so its PR carries `Closes #N`.
 - `orchestrate` has each finished branch reviewed by a fresh reviewer subagent on the coordinator's model. Before, the builder reviewed its own branch. The builder now only fixes, can dispute a finding with evidence, and every round of fixes is reviewed again.
 
+### Fixed
+
+- `recheck` takes its baseline only from your own `reviewed:` markers. A teammate's marker at the PR head used to make a PR you had not re-reviewed look unchanged.
+
 ## [0.5.0] - 2026-11-10
 
 ### Added
