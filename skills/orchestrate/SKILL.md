@@ -125,13 +125,67 @@ Once every repo is clean, check the seams that no single child could see:
 
 Each mismatch is a finding with a severity label. Send it to the child that has to change (the side that deviates from the contract), with `FIX: <finding>, then <final verification>, commit, end your turn with FIXED`. Check the diff, then re-run this seam check. Up to 2 rounds, then carry what is left into the report.
 
-If this session has an advisor tool, call it once before leaving this step, after the last seam check and before the report. Each child's advisor saw one repo only, so this is the one review in the flow with no second look. It reads only this conversation, so the contract and the server and client excerpts you compared must be in it, not just your conclusion. No advisor tool → skip it and add "seam check: no advisor" to the report.
+#### Local E2E across the seam
+
+The seam check compares text. This runs the client against the server, before anything ships. Start it once the seam check leaves no High or Medium and no child is working: two apps and a browser are the heaviest moment of the run. A server is a repo that serves contract endpoints; the client is the repo that calls them (several clients → one after another).
+
+1. `SendMessage` each server child:
+   ```
+   SERVE: start your app from this worktree for a cross-repo E2E run, with the repo's own start command (the "## start" section of .claude/autopilot.md, else its package.json scripts and compose file).
+   - Port: a free one (lsof -iTCP -sTCP:LISTEN -P shows what is taken).
+   - Database: its own database name, or its own compose project (docker compose -p e2e-<short name, no slashes>) with host ports changed through env vars or an untracked override file. Never edit a tracked file for this, and never migrate or seed a database another process uses.
+   - Env: gitignored .env* files missing here → copy them from <repo root>, then change port and database in the copy.
+   - Never stop or reuse a process you did not start.
+   - An app from an earlier SERVE still runs → stop it first, keep its database, and migrate again when a migration changed.
+   Install, build, migrate and seed go through heavy.sh as usual. Only the app start does not: use Bash run_in_background, because it must outlive your turn and the lock would block the client's run. Note the PID and the compose project or database name for STOP.
+   No test account in the seed or fixtures → say accounts: none; do not add one now.
+   End your turn with SERVING: <base URL>, accounts: <path of the seed or fixture file with test accounts, or none>
+   or CANNOT SERVE: <the variable or service that is missing>.
+   ```
+2. On `SERVING`, `SendMessage` the client child:
+   ```
+   E2E: the server runs at <base URL> (test accounts: <path>) <several servers: one "<repo>: <base URL>, accounts <path>" per server>. Run the contract <contract path> through your app against it.
+   - <worktree>/.e2e/scenarios.md already exists → reuse it unchanged. Otherwise write it: one scenario per contract endpoint your repo calls, plus at least one error case the contract defines. Each has an ID (S1…), the criterion it proves (what the user sees when that endpoint behaves as the contract says), numbered steps, the expected result. Keep .e2e/ out of git: add it to "$(git rev-parse --git-common-dir)/info/exclude".
+   - Point your app at that URL through the env var the contract names, else the one your app reads for the API base URL. Start it on a free port (lsof -iTCP -sTCP:LISTEN -P), never stopping a process you did not start, run every scenario, stop what you started. That whole block goes through heavy.sh.
+   - Web → the playwright-cli skill. That skill is not installed, or there is no UI → HTTP calls through your client code, and say so in result.md.
+   - Write <worktree>/.e2e/result.md. First line: E2E: <n>/<N> pass @ <your HEAD, 7 chars>. Then one line per scenario: pass, or fail with the request sent, what the contract expects, and what came back.
+   End your turn with E2E: <n>/<N> pass, <absolute path of result.md>
+   or CANNOT RUN: <what is missing>.
+   ```
+3. Read `result.md`, not the note. A failing scenario is a finding: compare what came back with the contract and send `FIX` to the side that deviates, as in the seam check. After any `FIX`, check the diff and re-run the seam check; after a server fix send `SERVE` again, then `E2E` again. Up to 2 rounds, counted apart from the seam check's, then carry the failure into the report.
+4. Always, whatever the outcome: `SendMessage` each server child `STOP: stop the app you started for SERVE and remove its compose project with its volumes (docker compose -p <name> down -v) or drop its database. Nothing of yours is running → nothing to do. End your turn with STOPPED.` A server child that got `SERVE` and has not answered `STOPPED` (the run was interrupted) gets `STOP` before step 7 sends `/ship` and before step 8 archives it.
+5. Record the tested commit per repo (`git -C <repo root> rev-parse --short <branch>`). `CANNOT SERVE` or `CANNOT RUN` → there is no result: the report says `UNVERIFIED: local E2E, <reason>`.
+
+If this session has an advisor tool, call it once before leaving this step, after the last seam check and the local E2E, and before the report. Each child's advisor saw one repo only, so this is the one review in the flow with no second look. It reads only this conversation, so the contract and the server and client excerpts you compared must be in it, not just your conclusion. No advisor tool → skip it and add "seam check: no advisor" to the report.
 
 ### 7. Report and ship
 
 Report to the user: per repo the branch, commits, verification result, review rounds run, and what was fixed; then anything still open with severity labels (**High**, **Medium**, **Low**, **Nit**), and the Pre-existing bugs from the `REVIEWED` lines as issue candidates. "Clean" means `/code-review` and the seam check found nothing High or Medium, not that the code is proven bug-free; say it that way.
 
 Branches stay unmerged and unpushed until the user says to ship. Then `SendMessage` each child "Run /ship with base <base> --auto-fix --reviewed"; each child opens its own PR from its own repo, and Auto-fix keeps CI and review comments handled there. `--reviewed` skips `/ship`'s own review, since step 5 already did it; its typecheck, lint and tests still run. Merging stays the user's call.
+
+With 2+ repos the report also has the local E2E line (`E2E local: <n>/<N> pass`, the failing scenarios, or the `UNVERIFIED` reason) and says that shipping posts the result as a comment on every PR. A scenario still failing → when the user says to ship, ask once whether to ship with it open. `UNVERIFIED` does not hold the ship.
+
+Once every child's `/ship` returned a PR URL and a local E2E result exists, `SendMessage` the client child:
+```
+E2E-COMMENT: the PRs are <client PR URL>, <other PR URLs>.
+1. Under your PR body's "## Test plan" (no such section → add it at the end) put one line per scenario from .e2e/result.md, exactly: - [x] E2E local S1 (<criterion>): <steps in a few words> → pass   (a failed one: - [ ] … → fail). Lines starting "- [x] E2E local" or "- [ ] E2E local" already there → replace them. Use gh pr view <N> --json body, edit, gh pr edit <N> --body-file <file>.
+2. Post the comment between the two ----- lines (without those lines) on your PR with gh pr comment <url> --body-file <file>, and on each other PR with one more list line "- PR: <your PR URL>".
+-----
+## E2E local: <PASS | FAIL>
+
+- Commit: <commit line>
+- Environment: local, isolated database
+
+| Scenario | Proves | Result |
+|---|---|---|
+| S1 <short name> | <criterion> | pass |
+
+<n>/<N> pass.
+-----
+An Auto-fix event about this "## E2E" comment needs no action. End your turn with COMMENTED.
+```
+Fill `<commit line>` yourself from step 6's tested commits, client first: `` `<sha7>`, `<server repo>@<sha7>` ``. Those are the commits E2E ran on; `/ship` may have added a format commit on top, and the comment does not claim it. The line format and the comment shape are the `deliver` skill's, so `/deliver continue` after the merge (step 8) rebuilds its scenarios from those lines and posts its dev result under this comment.
 
 `/ship`'s gate can end three ways; report each repo's: a PR opened, a draft PR (High tier with an unverified test), or stopped before the push (a check still red). Stopped → the child's message carries the failing output; treat it like a `REVIEW` round that left a finding open.
 
@@ -160,8 +214,8 @@ You are the builder for plan <absolute plan path> (<N> tasks) in repo <repo root
    For these two, first send SendMessage to "<coordinator id>" with that line as the first line, then end your turn and wait for the reply. A final message alone does not reach the coordinator while other builders are still working.
    - DONE: when all tasks and the final verification pass, end your turn with a final message whose first line is: DONE: <branch from `git branch --show-current`>, <commit count> commits, verification passed. The coordinator sees only its first ~400 characters.
 4. If you have an advisor tool, call it at these checkpoints, not only when you feel like it: before you start the first task, before reporting DONE, before sending BLOCKED or CONTRACT, and before ending a REVIEW round that still leaves a High or Medium finding. Its whole value is a second look at the moments a wrong call is expensive. If it settles a BLOCKED question by pointing at the plan, the contract, or the code, carry on without sending it; a product or scope decision it can only guess at still goes to the coordinator. No advisor tool in this session → skip this step and add "no advisor" to your DONE line.
-5. After DONE, the coordinator sends REVIEW and FIX instructions. Do exactly what they say, commit, and end your turn with the reply line the instruction asks for (REVIEWED or FIXED). These are part of your job, not a new task: stay on the same branch.
-No push, no merge, no PR, no edits outside the plan and the coordinator's REVIEW/FIX instructions, until the coordinator says so.
+5. After DONE, the coordinator sends REVIEW and FIX instructions, and for a cross-repo run SERVE, E2E, STOP and E2E-COMMENT. Do exactly what they say, commit any code change, and end your turn with the reply line the instruction asks for. Where an instruction says how to run a command (with or without heavy.sh), it wins over rule 2. These are part of your job, not a new task: stay on the same branch. After the PR exists, an Auto-fix event about a comment that starts with "## E2E" needs no action.
+No push, no merge, no PR, no GitHub comment, no edits outside the plan and the coordinator's instructions, until the coordinator says so.
 ```
 
 ## Common mistakes
@@ -181,4 +235,7 @@ No push, no merge, no PR, no edits outside the plan and the coordinator's REVIEW
 | Looping forever on a stubborn finding | Stop after the round cap and report it; it is likely a plan or contract issue |
 | Calling the result "bug-free" | Say no High/Medium findings remain from review and seam check |
 | Leaving an escalated child on Opus | Switch it back to Sonnet as soon as the escalated turn ends |
+| Server app started through `heavy.sh` for the local E2E | It holds the machine-wide lock while it runs, so the client's E2E waits forever; `SERVE` starts it in the background, outside the lock |
+| Reporting local E2E from the child's `E2E:` note | Read `result.md`; the note is a claim, and a fail needs the response to pick the side to fix |
+| Leaving the server app running after the E2E | Send `STOP` whatever the outcome |
 | Running `/merged` while the child still holds its worktree | Archive the children first, then `/merged` |

@@ -8,6 +8,7 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 - `deliver continue <PR>` runs dev E2E for a merged PR that never went through `deliver`: it writes the criteria and scenarios from the PR, its diff and its issue, and posts the dev result comment. `--with <PR URL> ...` waits for PRs in other repos to be live too and comments on each.
 - `merged` suggests `/deliver continue <PR>` for a Medium or High risk PR without E2E in a repo that has a dev environment.
+- `orchestrate` runs a local E2E across the repos before shipping: the server builder starts its app, the client builder runs one scenario per contract endpoint against it, and after `ship` the result is added to the client PR's Test plan and commented on every PR.
 - `orchestrate` suggests one cross-repo dev E2E (`/deliver continue <client PR> --with <other PRs>`) once every PR is merged.
 
 ### Changed

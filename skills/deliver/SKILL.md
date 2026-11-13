@@ -63,7 +63,7 @@ P2. **Dev host gate.** The dev URL must come from the user's own message in this
    - exit 0 → log in with test accounts as the scenarios need.
    - exit 2 → the user gave a bare host; prepend `https://` and run it again.
    - exit 1 → **no login on this host, even if the user says it is dev.** The gate reads the hostname, not the claim. Run only the unauthenticated scenarios, mark the rest `UNVERIFIED: host has no test label`, finish through P5 (the PARTIAL comment is posted), and ask there for a URL whose hostname has one. A labelled URL from the user reruns P2–P5 on it.
-   Credentials come from the seed, fixture or example-config files only.
+   Credentials come from the seed, fixture or example-config files only; with `with` set, those of a `with` repo count too.
    `.claude/autopilot.md` missing (the repo never ran phase 1) → do not create it now, no PR is left to carry it. The dev URL comes from the user as above, the deploy signal is detected as [deploy-signals.md](references/deploy-signals.md) describes, both are kept in `state.json` (`dev_url_hint`, `deploy_signal`) instead of the file that reference names, and one chat line after the report says the file is missing.
 
 P3. **Wait for the deploy.** Follow [deploy-signals.md](references/deploy-signals.md). Wait with Bash `run_in_background` (one notification), never by polling the PR, ScheduleWakeup or cron. `FAILED` or `TIMEOUT` → set `phase` back to `pr-open` (so a later `continue` can rerun phase 2), report and stop; never test old code. Any other stop before P5 resets it the same way. With `with` set, every PR's merge commit must be live before P4: wait for each through signal 2 of that file with `--repo <owner/repo>` of that PR, its deploy workflow found with `gh api repos/<owner/repo>/contents/.github/workflows`. That repo has no deploy workflow → ask the user once whether it is deployed.
@@ -90,6 +90,7 @@ Evidence: <path to report.md>
 
 - FAIL: any scenario failed. PARTIAL: none failed, at least one SKIPPED or UNVERIFIED. PASS: every scenario passed.
 - The phase-1 verdict covers local only; `Dev: pending merge` does not lower it.
+- `tested_sha: unknown` → the Local counts are those of the PR body's `E2E local` lines.
 - `tested_sha: none` → `Local: not run`, the Dev line gets no `local tested` part, and the verdict covers dev only.
 - A stop (app won't start, 3 failed fix rounds, deploy failed) uses the same block with `Verdict: FAIL` and one extra line `Blocked: <what is missing> — <command to resume>`.
 
