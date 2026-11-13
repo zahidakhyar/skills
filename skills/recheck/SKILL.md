@@ -7,7 +7,7 @@ description: Re-review a pull request after the author pushed fix commits, in an
 
 A second pass over a PR that was already reviewed. The value here is narrow and specific: **deciding what the new commits actually changed about your earlier findings.** A fresh full review would re-derive things you already know and, worse, tends to soften prior findings that nobody actually fixed. First review → `/pr-review`.
 
-Argument: `/recheck <PR number|URL>`. Missing → list open PRs carrying a `reviewed:` marker and ask which one.
+Argument: `/recheck <PR number|URL>`. Missing → list open PRs carrying a `reviewed:` marker of your own and ask which one.
 
 Needs `gh` (authenticated) and `jq`. The repo can be any language — gates are detected from the repo, never assumed from habit.
 
