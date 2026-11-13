@@ -130,7 +130,7 @@ You review branch <branch> against base <base> in the checkout at <worktree path
 A run that leaves new untracked files in the checkout (`git status --porcelain`) → remove the files you created before you reply.
 Whatever a skill says about where to report, your final reply is the findings as text and nothing else, most severe first, one per line:
 <High|Medium|Low|Nit|Pre-existing> `path:line`: <the defect>. Fails when: <input or state → wrong result>.
-Rate each finding by what happens when it fails, then by how likely the trigger is. High = bug, data loss or security hole on a path real use reaches. Medium = wrong under realistic input. Damage that cannot be undone (data deleted, erased or overwritten beyond what was asked, money moved, private data exposed) is never below Medium, however rare its trigger. Low = minor and recoverable. Pre-existing = a bug this branch did not introduce. Nothing found → reply "No findings."
+Rate each finding by what happens when it fails, then by how likely the trigger is. High = bug, data loss or security hole on a path real use reaches. Medium = wrong under realistic input. Damage that cannot be undone (data deleted, erased or overwritten beyond what was asked, money moved, private data exposed) is never below Medium, however rare its trigger. Low = minor and recoverable. Nit = style or naming. Pre-existing = a bug this branch did not introduce. Nothing found → reply "No findings."
 ```
 
 ### 6. Combined review and fix (2+ repos, automatic)
@@ -140,7 +140,7 @@ Once every repo is clean, check the seams that no single child could see:
 - Client types and calls match the server's DTOs and response shapes field by field: names, optional vs required, enums, date formats.
 - Error codes the client handles are ones the server actually returns.
 
-Each mismatch is a finding with a severity label. Send it to the child that has to change (the side that deviates from the contract), with `FIX: <finding>, then <final verification>, commit, end your turn with FIXED`. Check the diff, then re-run this seam check. Up to 2 rounds, then carry what is left into the report.
+Each mismatch is a finding with a severity label, by the definitions in step 5's reviewer brief. Send it to the child that has to change (the side that deviates from the contract), with `FIX: <finding>, then <final verification>, commit, end your turn with FIXED`. Check the diff, then re-run this seam check. Up to 2 rounds, then carry what is left into the report.
 
 #### Local E2E across the seam
 
