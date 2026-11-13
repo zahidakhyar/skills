@@ -4,23 +4,25 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-13
+
 ### Added
 
-- `deliver continue <PR>` runs dev E2E for a merged PR that never went through `deliver`: it writes the criteria and scenarios from the PR, its diff and its issue, and posts the dev result comment. `--with <PR URL> ...` waits for PRs in other repos to be live too and comments on each.
-- `merged` suggests `/deliver continue <PR>` for a Medium or High risk PR without E2E in a repo that has a dev environment.
-- `orchestrate` runs a local E2E across the repos before shipping: the server builder starts its app, the client builder runs one scenario per contract endpoint against it, and after `ship` the result is added to the client PR's Test plan and commented on every PR.
-- `orchestrate` suggests one cross-repo dev E2E (`/deliver continue <client PR> --with <other PRs>`) once every PR is merged.
+- `deliver continue <PR>` runs dev E2E for a merged PR that never went through `deliver`: it writes the criteria and scenarios from the PR, its diff and its issue, and posts the dev result comment. `--with <PR URL> ...` waits for PRs in other repos to be live too and comments on each. (#19)
+- `merged` suggests `/deliver continue <PR>` for a Medium or High risk PR without E2E in a repo that has a dev environment. (#19)
+- `orchestrate` runs a local E2E across the repos before shipping: the server builder starts its app, the client builder runs one scenario per contract endpoint against it, and after `ship` the result is added to the client PR's Test plan and commented on every PR. (#20)
+- `orchestrate` suggests one cross-repo dev E2E (`/deliver continue <client PR> --with <other PRs>`) once every PR is merged. (#19)
 
 ### Changed
 
-- `deliver` posts its E2E results where the team reads them: one result comment per phase (local, then dev) on the PR and on the issue the task came from. Before, local results sat only in the PR body and the issue got nothing.
-- `deliver` passes the issue to `ship`, so its PR carries `Closes #N`.
-- `orchestrate` has each finished branch reviewed by a fresh reviewer subagent on the coordinator's model. Before, the builder reviewed its own branch. The builder now only fixes, can dispute a finding with evidence, and every round of fixes is reviewed again.
+- `deliver` posts its E2E results where the team reads them: one result comment per phase (local, then dev) on the PR and on the issue the task came from. Before, local results sat only in the PR body and the issue got nothing. (#18)
+- `deliver` passes the issue to `ship`, so its PR carries `Closes #N`. (#18)
+- `orchestrate` has each finished branch reviewed by a fresh reviewer subagent on the coordinator's model. Before, the builder reviewed its own branch. The builder now only fixes, can dispute a finding with evidence, and every round of fixes is reviewed again. (#21)
 
 ### Fixed
 
-- `recheck` takes its baseline only from your own `reviewed:` markers. A teammate's marker at the PR head used to make a PR you had not re-reviewed look unchanged.
-- `orchestrate`'s reviewer rates a finding by what happens when it fails: damage that cannot be undone is never below Medium, however rare its trigger, so it reaches the builder as a `FIX`. A rare over-deletion used to be labelled Low and stay in the report.
+- `recheck` takes its baseline only from your own `reviewed:` markers. A teammate's marker at the PR head used to make a PR you had not re-reviewed look unchanged. (#22)
+- `orchestrate`'s reviewer rates a finding by what happens when it fails: damage that cannot be undone is never below Medium, however rare its trigger, so it reaches the builder as a `FIX`. A rare over-deletion used to be labelled Low and stay in the report. (#23)
 
 ## [0.5.0] - 2026-11-10
 
@@ -82,7 +84,9 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/zahidakhyar/skills/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/zahidakhyar/skills/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/zahidakhyar/skills/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/zahidakhyar/skills/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/zahidakhyar/skills/compare/v0.1.0...v0.2.0
