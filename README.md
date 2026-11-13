@@ -211,13 +211,14 @@ Builds implementation plans in separate builder sessions while the current sessi
 - No path → the newest file in `docs/superpowers/plans/`.
 - Two or more repos → locks a shared contract first, or uses `--contract <path>`.
 - One builder session per plan, each in its own worktree. Builders run on Sonnet by default; the coordinator suggests Opus per plan where it pays off, and `--opus` puts every builder on Opus.
-- When builders finish, runs a review-fix loop per repo and a combined cross-repo check, then has each builder `ship` its own PR when you say so.
+- When builders finish, each branch is reviewed by a fresh reviewer subagent on the coordinator's model, and the builder fixes what it finds, for up to three rounds. A combined cross-repo check follows, then each builder `ship`s its own PR when you say so.
 - Cross-repo builds also get a local E2E before shipping: the server builder starts its app on a free port with its own database, the client builder runs one scenario per contract endpoint against it. The result goes into the report, and after `ship` into the client PR's Test plan and a comment on every PR. An app that can't start locally is reported as `UNVERIFIED` and does not block the ship; a failing scenario asks you first.
 
 ```mermaid
 sequenceDiagram
     actor You
     participant C as Coordinator (this session)
+    participant R as Reviewer (subagent)
     participant BE as Builder: backend
     participant FE as Builder: frontend
     You->>C: /orchestrate plan-be.md plan-fe.md
@@ -229,8 +230,10 @@ sequenceDiagram
     BE-->>C: DONE / BLOCKED / CONTRACT
     FE-->>C: DONE / BLOCKED / CONTRACT
     loop until no High/Medium finding
-        C->>BE: REVIEW / FIX
-        C->>FE: REVIEW / FIX
+        C->>R: review each branch (read-only)
+        R-->>C: findings
+        C->>BE: FIX
+        C->>FE: FIX
     end
     C->>BE: SERVE (app on a free port, own database)
     C->>FE: E2E (contract scenarios against BE)

@@ -15,6 +15,7 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 - `deliver` posts its E2E results where the team reads them: one result comment per phase (local, then dev) on the PR and on the issue the task came from. Before, local results sat only in the PR body and the issue got nothing.
 - `deliver` passes the issue to `ship`, so its PR carries `Closes #N`.
+- `orchestrate` has each finished branch reviewed by a fresh reviewer subagent on the coordinator's model. Before, the builder reviewed its own branch. The builder now only fixes, can dispute a finding with evidence, and every round of fixes is reviewed again.
 
 ## [0.5.0] - 2026-11-10
 
