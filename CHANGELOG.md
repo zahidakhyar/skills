@@ -20,6 +20,7 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 ### Fixed
 
 - `recheck` takes its baseline only from your own `reviewed:` markers. A teammate's marker at the PR head used to make a PR you had not re-reviewed look unchanged.
+- `orchestrate`'s reviewer rates a finding by what happens when it fails: damage that cannot be undone is never below Medium, however rare its trigger, so it reaches the builder as a `FIX`. A rare over-deletion used to be labelled Low and stay in the report.
 
 ## [0.5.0] - 2026-11-10
 
