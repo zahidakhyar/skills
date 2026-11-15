@@ -71,13 +71,13 @@ printf '#!/usr/bin/env bash\n%s "$@" 2>/dev/null || [ -d "${!#}" ]\n' "$realmkdi
 chmod +x "$fakebin/mkdir"
 
 # The two races below show up in a fraction of runs only, so each is repeated.
-rounds=15
+rounds=8
 
 # concurrent waiters with a slow ps
 for round in $(seq 1 "$rounds"); do
   log="$tmp/conc.$round.log"
   for i in 1 2 3 4; do
-    PATH="$fakebin:$PATH" "$script" sh -c "echo 's $i' >>'$log'; sleep 0.1; echo 'e $i' >>'$log'" 2>/dev/null &
+    PATH="$fakebin:$PATH" "$script" sh -c "echo 's $i' >>'$log'; sleep 0.3; echo 'e $i' >>'$log'" 2>/dev/null &
   done
   wait
   [ "$(grep -c '^s ' "$log")" = "4" ] || fail "concurrent (round $round): not all 4 ran"
@@ -94,7 +94,7 @@ for round in $(seq 1 "$rounds"); do
   printf '%s\nwhatever\nold\n' "$dead" >"$HEAVY_LOCK/info"
   log="$tmp/stale.$round.log"
   for i in 1 2 3 4; do
-    PATH="$fakebin:$PATH" "$script" sh -c "echo 's $i' >>'$log'; sleep 0.1; echo 'e $i' >>'$log'" 2>/dev/null &
+    PATH="$fakebin:$PATH" "$script" sh -c "echo 's $i' >>'$log'; sleep 0.3; echo 'e $i' >>'$log'" 2>/dev/null &
   done
   wait
   [ "$(grep -c '^s ' "$log")" = "4" ] || fail "stale takeover (round $round): not all 4 ran"

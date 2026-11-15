@@ -4,13 +4,15 @@
 #
 #   heavy.sh <command> [args...]
 #
-# Exits with the command's exit code. The lock is a directory, held by whoever
-# created its "owner" file; its "info" file
-# holds the holder's pid, process start time and command, written in one
-# rename so a reader never sees it half-done. A lock whose pid is gone, or
-# whose pid now belongs to another process (start time differs), is stale.
-# Taking over a stale lock happens under a second "reap" lock, re-checked
-# inside, so two waiters never both remove and recreate it.
+# Exits with the command's exit code. The lock is the file "info" inside the
+# lock directory, holding the holder's pid, process start time and command.
+# It is written complete under a temporary name and then hard-linked into
+# place: link(2) creates the name only if it is absent, so exactly one caller
+# wins and a reader never sees it half-done. The directory itself stays, and
+# releasing the lock is one unlink. A lock whose pid is gone, or whose pid now
+# belongs to another process (start time differs), is stale. Taking over a
+# stale lock happens under a second "reap" guard, re-checked inside, so two
+# waiters never both remove it.
 #
 # HEAVY_LOCK      lock path (default ${XDG_STATE_HOME:-$HOME/.local/state}/claude-heavy.lock)
 # HEAVY_POLL_SEC  seconds between attempts (default 5)
@@ -30,15 +32,13 @@ lock="${HEAVY_LOCK:-${XDG_STATE_HOME:-$HOME/.local/state}/claude-heavy.lock}"
 reap="$lock.reap"
 poll="${HEAVY_POLL_SEC:-5}"
 wait_max="${HEAVY_WAIT_MAX:-7200}"
-grace=10 # seconds a lock or reap dir without info may stay before it counts as abandoned
-mkdir -p "$(dirname "$lock")"
+info="$lock/info"
+grace=10 # seconds a reap guard may stay before it counts as abandoned
 
 started() { ps -o lstart= -p "$1" 2>/dev/null || true; }
 
 # claim <path>: create the file only if it is not there yet. Bash opens it
-# with O_EXCL itself, so exactly one caller wins. mkdir does not promise that
-# everywhere: under uutils coreutils (Ubuntu 26.04) several racing mkdir calls
-# on one path can all exit 0.
+# with O_EXCL itself, so exactly one caller wins.
 claim() { ( set -C; : >"$1" ) 2>/dev/null; }
 
 # age <path>: seconds since last change; fails when the path is gone.
@@ -49,17 +49,22 @@ age() {
 }
 
 # is_stale: the current lock belongs to nobody alive. A lock that vanished
-# meanwhile is not stale (the next mkdir decides).
+# meanwhile is not stale (the next acquire decides).
 is_stale() {
-  local pid start a
-  if [ ! -f "$lock/info" ]; then
-    a="$(age "$lock")" || return 1
-    [ "$a" -gt "$grace" ]
-    return
+  local pid start now
+  { IFS= read -r pid; IFS= read -r start; } <"$info" 2>/dev/null || return 1
+  if kill -0 "$pid" 2>/dev/null; then
+    now="$(started "$pid")"
+    # Same process, or ps printed nothing for a pid that is still there.
+    if [ "$now" = "$start" ] || { [ -z "$now" ] && kill -0 "$pid" 2>/dev/null; }; then
+      return 1
+    fi
   fi
-  { IFS= read -r pid; IFS= read -r start; } <"$lock/info" 2>/dev/null || return 1
-  kill -0 "$pid" 2>/dev/null || return 0
-  [ "$(started "$pid")" != "$start" ]
+  # The holder looks gone, but checking took time (ps can be slow) and it may
+  # simply have finished meanwhile, with the next holder already in place. A
+  # holder that ends normally removes its info before it exits, so the lock is
+  # stale only if info still names that same holder.
+  [ "$(sed -n '1,2p' "$info" 2>/dev/null)" = "$pid"$'\n'"$start" ]
 }
 
 take_over() {
@@ -72,24 +77,24 @@ take_over() {
     fi
     return 0
   fi
-  if is_stale; then rm -rf "$lock"; fi
+  if is_stale; then rm -f "$info"; fi
   rm -f "$reap" 2>/dev/null || true
 }
 
 me_start="$(started "$$")"
 cmd="$*"
 
-# acquire: take the lock and record this process as its holder.
+# acquire: take the lock by linking a finished info file into place. Neither
+# mkdir nor removing a directory decides anything here: racing mkdir calls can
+# all succeed under uutils coreutils (Ubuntu 26.04), and a directory that is
+# being removed can still be entered.
 acquire() {
-  mkdir "$lock" 2>/dev/null || return 1
-  claim "$lock/owner" || return 1
-  # An info file that is already here was left by a dead holder whose lock has
-  # no owner file (an older version of this script wrote none). Waiters may be
-  # reaping that lock right now, so winning its owner file does not make it
-  # ours: leave it to take_over.
-  [ ! -e "$lock/info" ] || return 1
-  printf '%s\n%s\n%s\n' "$$" "$me_start" "$cmd" >"$lock/info.$$" 2>/dev/null &&
-    mv "$lock/info.$$" "$lock/info" 2>/dev/null
+  local tmp="$lock/info.$$" rc=0
+  mkdir -p "$lock" 2>/dev/null || return 1
+  printf '%s\n%s\n%s\n' "$$" "$me_start" "$cmd" >"$tmp" 2>/dev/null || return 1
+  ln "$tmp" "$info" 2>/dev/null || rc=1
+  rm -f "$tmp"
+  return "$rc"
 }
 
 announced=""
@@ -101,11 +106,11 @@ until acquire; do
   fi
   if is_stale; then
     take_over
-    if [ -d "$lock" ]; then sleep "$poll"; fi
+    if [ -e "$info" ]; then sleep "$poll"; fi
     continue
   fi
   if [ -z "$announced" ]; then
-    echo "waiting for heavy lock held by $(sed -n 3p "$lock/info" 2>/dev/null || echo '?') (pid $(sed -n 1p "$lock/info" 2>/dev/null || echo '?'))" >&2
+    echo "waiting for heavy lock held by $(sed -n 3p "$info" 2>/dev/null || echo '?') (pid $(sed -n 1p "$info" 2>/dev/null || echo '?'))" >&2
     announced=1
   fi
   sleep "$poll"
@@ -114,7 +119,7 @@ done
 child=""
 release() {
   # Only remove the lock if it is still ours.
-  [ "$(sed -n 1p "$lock/info" 2>/dev/null)" = "$$" ] && rm -rf "$lock"
+  [ "$(sed -n 1p "$info" 2>/dev/null)" = "$$" ] && rm -f "$info"
   return 0
 }
 on_signal() {
