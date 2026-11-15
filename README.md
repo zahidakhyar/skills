@@ -124,7 +124,7 @@ flowchart TD
     fixable -- "yes, can't fix" --> stop([stop, branch stays local])
 ```
 
-Run again on a branch that already has an open PR, it gates and pushes only the new commits, skips the review (the PR's own review covers them), raises the `## Risk` line when they call for a higher tier, and adds its Test plan lines to that PR. A branch that was pushed without a PR gets the full gate and a new PR.
+Run again on a branch that already has an open PR, it gates and pushes only the new commits, skips the review (the PR's own review covers them), raises the `## Risk` line when they call for a higher tier, and adds its Test plan lines to that PR. A branch that was pushed without a PR gets the full gate and a new PR. With nothing new to push, `--auto-fix`, `--draft` and `--issue` are applied to the open PR as it is.
 
 Example: `/zahidakhyar-skills:ship dev --issue 42 --auto-fix`
 

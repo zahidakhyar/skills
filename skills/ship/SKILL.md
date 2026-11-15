@@ -9,7 +9,7 @@ Run the branch → commit → gate → push → PR cycle in one go, without stop
 
 ## Arguments
 
-A token starting with `--` is a flag, and `--issue` takes the token after it as its value; the one remaining token is the base/target branch. No base → step 2 decides it.
+A token starting with `--` is a flag, and `--issue` takes the token after it as its value (`--issue=N` is the same); the one remaining token is the base/target branch. No base → step 2 decides it.
 
 | Flag | Effect |
 |---|---|
@@ -23,7 +23,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
 1. Check state — `git status --porcelain` + `git log HEAD --not --remotes --oneline 2>/dev/null` (commits not on any remote).
    - `origin` is a GitHub URL → `gh repo view --json name`, which reaches the repo the way `gh pr create` will. An authentication error → stop here with the `gh auth login` instruction, before anything is committed or reviewed for a PR that cannot be created.
    - `origin` is a GitHub URL and this is a feature branch (not `dev`, `develop`, the default branch or the branch the base argument names) → look up its PRs once: `gh pr list --head "$(git branch --show-current)" --state all --json url,state,baseRefName,isDraft,headRefOid`. The one whose state is `OPEN` is "the open PR" that steps 2, 6 and 8 reuse; several open → stop and list them, the user picks. Any other remote, any other branch, or a detached HEAD has no PR to find.
-   - No uncommitted changes AND no unpushed commits → stop: "nothing to ship". Two cases do not stop. An open PR and a flag that acts on it (`--auto-fix`, `--draft`, `--issue`) → go straight to step 8's open-PR bullet for `--draft` and `--issue`, then steps 9 and 10; nothing was pushed, so the gate, `## Risk` and the Test plan are left alone. The other case continues through every step: a feature branch on GitHub with no open PR, no merged or closed PR whose `headRefOid` is `git rev-parse HEAD` (that one already shipped this commit), and commits ahead of its base. Decide the base with step 2 first, then `git rev-list --count "origin/<base>"..HEAD` (`<base>` when it is not on the remote) must be above 0. It was pushed by hand, or an earlier run stopped after the push, so its PR was never created.
+   - No uncommitted changes AND no unpushed commits → stop: "nothing to ship". Two cases do not stop. An open PR and a flag that acts on it (`--auto-fix`, `--draft`, `--issue`) → decide the base with step 2, skip steps 3 to 7, then run step 8's open-PR bullet and steps 9 and 10; nothing was pushed, so `## Risk` and the Test plan are left alone. One of those flags with no open PR to act on → the stop message also says the flag was not applied, and why. The other case continues through every step: a feature branch on GitHub with no open PR, no merged or closed PR whose `headRefOid` is `git rev-parse HEAD` (that one already shipped this commit), and commits ahead of its base. Decide the base with step 2 first, then `git rev-list --count "origin/<base>"..HEAD` (`<base>` when it is not on the remote) must be above 0. It was pushed by hand, or an earlier run stopped after the push, so its PR was never created.
 
 2. Decide the base/target branch — the open PR from step 1 keeps its base: use its `baseRefName`, and when the argument names another branch, say in the output that it was ignored. No open PR → the argument if given (`/ship main`). Otherwise:
    ```bash
@@ -73,7 +73,11 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
 7. Push — `git push -u origin <branch>`.
 
 8. PR — create it, or update the open one from step 1:
-   - An open PR exists → no create. When this run pushed commits, bring its body up to date: `gh pr view <url> --json body -q .body` into a file, raise the `## Risk` line to the tier from 6a when that is higher, written as the Risk rule below says (a tier in the body that is already higher stays: a reviewer may have set it), append this run's lines to the Test plan section under whatever heading the body gives it (add either section when the body has none), then `gh pr edit <url> --body-file <file>`. `--issue N` is set and no `Closes` line names that issue → add one as the first line. Every other section stays as written. `--draft` is set and `isDraft` is false → `gh pr ready <url> --undo`; step 6d's draft rule applies at creation only, so a PR a human marked ready stays ready.
+   - An open PR exists → no create; its URL is this step's result. Fetch the body once, `gh pr view <url> --json body -q .body` into a file, apply the two rules below, and run `gh pr edit <url> --body-file <file>` only when the file changed. Every other section stays as written.
+     - This run pushed commits → raise the `## Risk` line to the tier from 6a when that is higher, written as the Risk rule below says (a tier in the body that is already higher stays: a reviewer may have set it), and append this run's lines to the Test plan section under whatever heading the body gives it (add either section when the body has none).
+     - `--issue N` is set and no `Closes` line names that issue → add one as the first line.
+
+     `--draft` is set and `isDraft` is false → `gh pr ready <url> --undo`; step 6d's draft rule applies at creation only, so a PR a human marked ready stays ready.
    - None yet → find the issue number: the argument (`/ship --issue 271`), then branch name `<type>/<N>-slug`, then a GitHub closing keyword before `#N` in a commit message (`close`/`closes`/`closed`, `fix`/`fixes`/`fixed`, `resolve`/`resolves`/`resolved`). A bare `#N` in a commit message is a mention, not a close. Found → `gh issue view <N> --json title,body` (issue in another repo: `gh issue view <N> -R owner/repo --json title,body`).
    - `gh pr create --base <base>` (add `--draft` when the flag is set or step 6d calls for it) with a conventional title and a body in the language the user's rules set for PR descriptions (CLAUDE.md or files it imports); no such rule → English. Section headings are translated into that language too, except the literal `Closes`, `## Risk` and its `Low|Medium|High` value, which other skills parse. The body follows the shape below, in this order. Sections marked *conditional* are written only when their condition holds; no section ever says "none" or "N/A".
 
@@ -131,7 +135,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
      2. Not bound → `mcp__ccd_pr__bind_pr({ url })` first.
      3. `mcp__ccd_pr__set_monitor({ auto_fix: true, address_comments: true, url })`. `address_comments` is required and must equal `auto_fix`; the app rejects the call when only one is sent.
      The approval dialog that appears here belongs to the app, not to the agent asking — it does not violate "no confirmation", do not skip the call.
-   - Without `--auto-fix` → `mcp__ccd_pr__get_status` for CI status, then a one-line offer to turn Auto-fix on. Do not call `set_monitor`. A yes on the next turn runs the same three calls as the flag path. `/ship --auto-fix` typed later on the same clean branch also gets here, through step 1.
+   - Without `--auto-fix` → `mcp__ccd_pr__get_status` for CI status, then a one-line offer to turn Auto-fix on. Do not call `set_monitor`. A yes on the next turn runs the same three calls as the flag path, and so does `/ship --auto-fix` typed later on the same clean branch (step 1 lets it through).
    - `--auto-fix` **never** calls `mcp__ccd_pr__set_auto_merge`. Auto-merge is turned on only when the user asks for it by that word.
    - Do not poll `gh pr checks` after the PR is created; `get_status` already reads CI from the app's cache.
 
@@ -142,7 +146,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
 | On `dev` with changes | New branch from dev → commit → gate → push → PR to dev |
 | On a feature branch with changes | Commit on that branch → gate → push → PR to base |
 | Clean working tree, unpushed commits | Format → `chore: format` commit only if step 4 changed files → gate → push → PR |
-| An open PR already exists for this branch | Format → commit if anything changed → gate on the new commits, no review → push → raise `## Risk` if needed and add Test plan lines in that PR, show its URL |
+| An open PR already exists for this branch, new changes or commits | Format → commit if anything changed → gate on the new commits, no review → push → raise `## Risk` if needed and add Test plan lines in that PR, show its URL |
 | Branch pushed, clean tree, never had a PR | Gate on the whole branch, review included → PR |
 | Medium or High tier | `code-review` runs in a `general-purpose` subagent; Low runs inline |
 | README/changelog/copy-only diff | Gate skipped, one Test plan line says so |
