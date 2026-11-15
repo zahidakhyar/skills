@@ -26,7 +26,7 @@ For each plan, read sparingly. Do not `Read` whole plans, do not explore the cod
 - `grep -nE '^#{2,3} (Task|Phase) [0-9]+' <plan>` → N tasks (0 → ask whether this is a plan file). Execution skill: N ≤ 10 → `superpowers:executing-plans`, N > 10 → `superpowers:subagent-driven-development`.
 - Repo root: `git -C "$(dirname <plan>)" rev-parse --show-toplevel`. Two plans in the same repo → ask whether they should run in one child, sequentially; two writers in one repo collide.
 - Slug: file name without date prefix and `.md`.
-- Base branch: `dev` → `develop` → the repo's default branch, first that exists as a local branch (`git -C <repo root> show-ref --verify --quiet refs/heads/<b>`). The worktree is cut from it, so a remote-only `origin/dev` does not count.
+- Base branch: `dev` → `develop` → the repo's default branch, first that exists as a local branch (`git -C <repo root> show-ref --verify --quiet refs/heads/<b>`). The worktree is cut from it, so a remote-only `origin/dev` does not count. Then `git -C <repo root> fetch origin <base>` and `git -C <repo root> rev-list --count <base>..origin/<base>`. Above 0 → the child would build on old code: tell the user how many commits the local base is behind and ask whether to fast-forward it first (`git -C <repo root> merge --ff-only origin/<base>` when `<base>` is the branch checked out there, otherwise `git -C <repo root> fetch origin <base>:<base>`) or to build on it as it is. Git refuses the fast-forward (the local base has commits of its own, or local changes are in the way) → leave it and let the user decide. No `origin` remote, or the fetch fails → carry on and say so in the report.
 - Final verification: the `test`/`lint`/`typecheck` scripts in that repo's `package.json`, or the test command in its CLAUDE.md.
 - Already done? `ls` the first and last `Create:` paths. Last exists → report it and drop that plan.
 - UI-heavy? Run:
@@ -50,7 +50,7 @@ Single repo → skip this step.
 
 ### 3. Spawn the children
 
-Default: children in parallel, since the locked contract lets each side build against it, but **at most 2 working at once**. The limit is local RAM: agent reasoning runs remotely, while each child's `tsc`, test runs, and builds run on this machine and can take 1–2 GB each. With 3+ repos, run them in batches of 2: this session gets a turn only once every working child is idle (step 4), so the next batch starts when the whole current batch has reported DONE, not when one of the two finishes. Run one after another only when one child needs the other's output to exist (a client generated from the backend's OpenAPI file, a migration the other side queries). Then spawn the dependent child after the first reports DONE.
+Default: children in parallel, since the locked contract lets each side build against it, but **at most 2 working at once**. The limit is local RAM: agent reasoning runs remotely, while each child's `tsc`, test runs, and builds run on this machine and can take 1–2 GB each. With 3+ repos, run them in batches of 2: this session gets a turn only once every working child is idle (step 4), so the next batch starts when the whole current batch has reported DONE, not when one of the two finishes. Run one after another only when one child needs the other's output to exist (a client generated from the backend's OpenAPI file, a migration the other side queries). Then spawn the dependent child after the first reports DONE. That output sits on the first child's unmerged branch, which the dependent child's own repo cannot see, so its builder prompt carries the input line with the file's absolute path inside the first child's worktree (`git -C <first repo root> worktree list --porcelain`, the entry whose `branch` is the first child's, plus the path the first plan's `Create:` line gives that file; no such line, because a command generates it → ask the first child for the path; `ls` it before spawning). A later `FIX` that changes that file → `SendMessage` the dependent child what changed, like a contract change.
 
 A later spawn (second batch, dependent child) runs on a turn a child's note started, not the user, and the app can refuse `start_session` there, in particular for a repo outside this session's folder. Refused → do not retry, and do not build that plan yourself. Tell the user in one line which child is waiting and that a message from them starts it, finish this turn's step 4 reviews, end the turn, and make the same call on their reply. A plan whose child has not started is not DONE, so step 5 waits for it. Ask in plain text, not through a question dialog (`AskUserQuestion`): its answer comes back inside the same turn, which is still not the user's.
 
@@ -93,8 +93,8 @@ Always address a child with `SendMessage` `to` = its `local_…` id from the `st
 - `READY` → raise that child's effort and send `GO` (step 3), once per child: the end-of-turn note of that same turn needs no second `GO`.
 - `BLOCKED: <question>` → answer it from the plans, the contract, or the code. If they cannot settle it, ask the user and send the answer to the child.
 - `CONTRACT: <proposed change>` → decide with the user. Accepted → edit the contract file, then `SendMessage` every affected child: the exact change and the contract path. Rejected → tell the requesting child to build against the contract as it stands.
-- `DONE` → review that repo: `git -C <repo root> log --oneline <base>..<branch>` and `git -C <repo root> diff <base>...<branch>` against the plan's Goal. A finding to fix → `SendMessage` it to that child. This pass checks that the branch does what the plan says; the bug review is step 5's, by a separate reviewer.
-- An end-of-turn note that opens with none of these lines, nor with the reply line a later step asked for (`FIXED`, `SERVING`, `E2E`, `STOPPED`, `COMMENTED`, their `CANNOT` forms) (a question, an error, a child that stopped before `READY`) → the child is idle and nothing will move it. Read the note, then `SendMessage` the child what it needs: the answer, or the step it skipped, and the line its turn must end with. The same child does it a second time → tell the user instead of sending a third message.
+- `DONE` → review that repo: `git -C <repo root> log --oneline <base>..<branch>` and `git -C <repo root> diff <base>...<branch>` against the plan's Goal. A finding to fix → `SendMessage` that child `FIX: <finding>, then <final verification>, commit, end your turn with FIXED`, and check the fix diff on `FIXED`. This pass checks that the branch does what the plan says; the bug review is step 5's, by a separate reviewer.
+- An end-of-turn note that opens with none of these lines, nor with the reply line a later step asked for (`FIXED`, `SERVING`, `E2E`, `STOPPED`, `SHIPPED`, `DRAFT`, `COMMENTED`, their `CANNOT` and `NOT` forms) (a question, an error, a child that stopped before `READY`) → the child is idle and nothing will move it. Read the note, then `SendMessage` the child what it needs: the answer, or the step it skipped, and the line its turn must end with. The same child does it a second time → tell the user instead of sending a third message. A note that opens with a PR URL after `/ship` is not this case: step 7 handles it.
 - `DONE` from a child that was given the READY line and never sent it → it built at the effort it inherited. Review it as usual, name that level in the report, and raise the child to `high` (step 3's `set_session_effort` call) before its first `FIX`.
 
 A note is the child's claim, not proof. Check the diff before telling the user anything is done. A DONE line with "no advisor" means the child ran without its quality backstop; review that diff more closely and tell the user.
@@ -129,6 +129,8 @@ For each repo, up to 3 rounds:
 4. The child committed fixes → next round: a new reviewer first, with the round 2+ lines of the brief. It re-checks every earlier finding and reviews the fix commits, because a fix that does exactly what the finding asked is where the next bug tends to sit. Its High and Medium findings and the disputes you rejected go to the child in one `FIX`, sent only after the reviewer has replied. Nothing committed → no reviewer; rejected disputes alone make the next round's `FIX`, and with none left the repo is clean.
 
 Round 3's `FIX` runs escalated (step 4, "Escalation"). After 3 rounds with High/Medium still open, stop looping on that repo and carry the findings into the report. A loop that keeps failing is usually a plan or contract problem, which more automated rounds will not fix.
+
+When a repo leaves this loop, note its reviewed commit: `git -C <repo root> rev-parse <branch>` when it left clean, the commit noted before round 3's `FIX` when it left after round 3, since no reviewer saw that last fix. Step 6 reviews whatever lands on the branch after it.
 
 #### Reviewer brief
 
@@ -183,17 +185,23 @@ The seam check compares text. This runs the client against the server, before an
 4. Always, whatever the outcome: `SendMessage` each server child `STOP: stop the app you started for SERVE and remove its compose project with its volumes (docker compose -p <name> down -v) or drop its database. Nothing of yours is running → nothing to do. End your turn with STOPPED.` A server child that got `SERVE` and has not answered `STOPPED` (the run was interrupted) gets `STOP` before step 7 sends `/ship` and before step 8 archives it.
 5. Record the tested commit per repo (`git -C <repo root> rev-parse --short <branch>`). `CANNOT SERVE` or `CANNOT RUN` → there is no result: the report says `UNVERIFIED: local E2E, <reason>`.
 
+#### Review of this step's fixes
+
+Runs after the last seam check and the local E2E, and just the same when the E2E never started (the seam check hit its round cap with findings open) or ended in `CANNOT SERVE` or `CANNOT RUN`. The commits this step's `FIX`es added are the only ones no reviewer has seen, and `/ship --reviewed` will not review them either.
+
+For each repo whose branch moved past its reviewed commit (step 5): one reviewer as in step 5, with the round 2+ lines of the brief, earlier findings = this step's findings sent to that child, fix commits = `<reviewed commit>..<branch>`. High or Medium → one `FIX` to the child, check its diff, then the seam check once more, and when the local E2E ran, `SERVE`, `E2E` and `STOP` once more, recording the tested commit again. No second reviewer: what is still open goes into the report, which also says that this last fix was read by the coordinator only. No branch moved → skip this.
+
 If this session has an advisor tool, call it once before leaving this step, after the last seam check and the local E2E, and before the report. Each child's advisor saw one repo only, so this is the one review in the flow with no second look. It reads only this conversation, so the contract and the server and client excerpts you compared must be in it, not just your conclusion. No advisor tool → skip it and add "seam check: no advisor" to the report.
 
 ### 7. Report and ship
 
 Report to the user: per repo the branch, commits, the child's model and effort, verification result, review rounds run with the model that reviewed (this session's), and what was fixed; then anything still open with severity labels (**High**, **Medium**, **Low**, **Nit**), and the Pre-existing bugs from the reviewers' findings as issue candidates. "Clean" means `/code-review` and the seam check found nothing High or Medium, not that the code is proven bug-free; say it that way.
 
-Branches stay unmerged and unpushed until the user says to ship. Then `SendMessage` each child "Run /ship with base <base> --auto-fix --reviewed"; each child opens its own PR from its own repo, and Auto-fix keeps CI and review comments handled there. `--reviewed` skips `/ship`'s own review, since step 5 already did it; its typecheck, lint and tests still run. Merging stays the user's call.
+Branches stay unmerged and unpushed until the user says to ship. Then `SendMessage` each child "Run /ship with base <base> --auto-fix --reviewed. End your turn with a first line SHIPPED: <PR URL>, or DRAFT: <PR URL>, or NOT SHIPPED: <the check that is still red, with its output>"; each child opens its own PR from its own repo, and Auto-fix keeps CI and review comments handled there. `--reviewed` skips `/ship`'s own review, since step 5 already did it; its typecheck, lint and tests still run. Merging stays the user's call.
 
 With 2+ repos the report also has the local E2E line (`E2E local: <n>/<N> pass`, the failing scenarios, or the `UNVERIFIED` reason) and says that shipping posts the result as a comment on every PR. A scenario still failing → when the user says to ship, ask once whether to ship with it open. `UNVERIFIED` does not hold the ship.
 
-Once every child's `/ship` returned a PR URL and a local E2E result exists, `SendMessage` the client child:
+Once every child answered `SHIPPED` or `DRAFT` and a local E2E result exists, `SendMessage` the client child:
 ```
 E2E-COMMENT: the PRs are <client PR URL>, <other PR URLs>.
 1. Under your PR body's "## Test plan" (no such section → add it at the end) put one line per scenario from .e2e/result.md, exactly: - [x] E2E local S1 (<criterion>): <steps in a few words> → pass   (a failed one: - [ ] … → fail). Lines starting "- [x] E2E local" or "- [ ] E2E local" already there → replace them. Use gh pr view <N> --json body, edit, gh pr edit <N> --body-file <file>.
@@ -214,7 +222,7 @@ An Auto-fix event about this "## E2E" comment needs no action. End your turn wit
 ```
 Fill `<commit line>` yourself from step 6's tested commits, client first: `` `<sha7>`, `<server repo>@<sha7>` ``. Those are the commits E2E ran on; `/ship` may have added a format commit on top, and the comment does not claim it. The line format and the comment shape are the `deliver` skill's, so `/deliver continue` after the merge (step 8) rebuilds its scenarios from those lines and posts its dev result under this comment.
 
-`/ship`'s gate can end three ways; report each repo's: a PR opened, a draft PR (High tier with an unverified test), or stopped before the push (a check still red). Stopped → the child's message carries the failing output; treat it like a step 5 round that left a finding open.
+`/ship`'s gate can end three ways; report each repo's: a PR opened (`SHIPPED`), a draft PR (`DRAFT`: High tier with an unverified test), or stopped before the push (`NOT SHIPPED`: a check still red). Stopped → the child's message carries the failing output; treat it like a step 5 round that left a finding open. A note that opens with a PR URL instead of one of the three lines (the URL is `/ship`'s own output) is not a stalled child: `gh pr view <URL> --json isDraft,state` and count it as `SHIPPED` or `DRAFT`.
 
 ### 8. Cleanup after merge
 
@@ -230,6 +238,7 @@ Runs when the user says the PRs are merged ("merged", "the PRs are in", in any l
 ```
 You are the builder for plan <absolute plan path> (<N> tasks) in repo <repo root>. The coordinator is session <coordinator id>.
 <Only with 2+ repos:> The API contract is <absolute contract path>. It is locked: read it, build against it exactly, and never edit it. Other repos building against the same contract: <repo: what it builds, one line each>.
+<Only for a child that needs another child's output:> Your input is <absolute path of the file inside that child's worktree>, on the unmerged branch <branch> of <repo>. Read it there; never edit anything in that folder.
 
 <Only when the coordinator's effort is below high:> Before anything else, send SendMessage to "<coordinator id>" with the single line READY, end your turn, and start the plan when the coordinator replies GO.
 1. You are already on your own worktree branch, cut from <base>. Use <execution skill> to execute every task in the plan. Decide on your own between tasks; do not ask the user.
@@ -263,6 +272,9 @@ No push, no merge, no PR, no GitHub comment, no edits outside the plan and the c
 | Passing the reviewer the DONE note or your own read of the diff | It then confirms what it was told; the brief carries paths, base, branch and effort only |
 | Trusting FIXED without the fix diff | A child can fix past High/Medium or past the plan; check the diff stays in scope |
 | Sending `/ship` without `--reviewed` | The branch gets a second full review on top of step 5 |
+| Shipping seam or E2E fix commits that no reviewer saw | `--reviewed` skips `/ship`'s review, so step 6 runs one reviewer over `<reviewed commit>..<branch>` first |
+| Cutting the worktree from a local base that is behind `origin` | Fetch in step 1 and ask before building on old code |
+| Pointing a dependent child at the other repo's root for its input | The file is on an unmerged branch; give the path inside the first child's worktree |
 | Looping forever on a stubborn finding | Stop after the round cap and report it; it is likely a plan or contract issue |
 | Calling the result "bug-free" | Say no High/Medium findings remain from review and seam check |
 | Raising a child's effort while it is already building | The level applies from its next turn; raise it between `READY` and `GO` |
