@@ -77,9 +77,24 @@ take_over() {
 }
 
 me_start="$(started "$$")"
+cmd="$*"
+
+# acquire: take the lock and record this process as its holder.
+acquire() {
+  mkdir "$lock" 2>/dev/null || return 1
+  claim "$lock/owner" || return 1
+  # An info file that is already here was left by a dead holder whose lock has
+  # no owner file (an older version of this script wrote none). Waiters may be
+  # reaping that lock right now, so winning its owner file does not make it
+  # ours: leave it to take_over.
+  [ ! -e "$lock/info" ] || return 1
+  printf '%s\n%s\n%s\n' "$$" "$me_start" "$cmd" >"$lock/info.$$" 2>/dev/null &&
+    mv "$lock/info.$$" "$lock/info" 2>/dev/null
+}
+
 announced=""
 waited_since=$(date +%s)
-until mkdir "$lock" 2>/dev/null && claim "$lock/owner"; do
+until acquire; do
   if [ $(( $(date +%s) - waited_since )) -ge "$wait_max" ]; then
     echo "gave up waiting for heavy lock after ${wait_max}s: $lock" >&2
     exit 124
@@ -95,9 +110,6 @@ until mkdir "$lock" 2>/dev/null && claim "$lock/owner"; do
   fi
   sleep "$poll"
 done
-
-printf '%s\n%s\n%s\n' "$$" "$me_start" "$*" >"$lock/info.$$"
-mv "$lock/info.$$" "$lock/info"
 
 child=""
 release() {
