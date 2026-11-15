@@ -11,7 +11,7 @@ One plan in one repo is just the N=1 case of the same flow.
 
 Children execute their plan **inline** (`superpowers:executing-plans`) by default, whatever execution skill the plan recommends. This skill already reviews at the end (step 5 review-fix loop, step 6 seam check, the coordinator's diff review, the child's advisor), so the per-task review of `superpowers:subagent-driven-development` mostly duplicates it, while costing a cold-start subagent per task and handing tasks it judges mechanical to a cheap model. Inline, the child's own model writes every line, so the model choice below is what actually shapes the code. Exception: a plan with more than 10 tasks uses `subagent-driven-development`, because one context carrying that many tasks degrades by the last ones, and a fresh subagent per task is worth its cost there.
 
-Children run on Sonnet. Quality comes from three backstops rather than a pricier default: the child's advisor (a stronger reviewer model, from `advisorModel` in the user's Claude Code settings; without it the checkpoints are skipped) at fixed checkpoints in the builder prompt, a review of each finished branch by a fresh reviewer on the coordinator's model (step 5), and a temporary escalation to the coordinator's model when a child is stuck (see "Escalation").
+Children run on Sonnet at `high` effort. Quality comes from three backstops rather than a pricier default: the child's advisor (a stronger reviewer model, from `advisorModel` in the user's Claude Code settings; without it the checkpoints are skipped) at fixed checkpoints in the builder prompt, a review of each finished branch by a fresh reviewer on the coordinator's model (step 5), and a temporary escalation to the coordinator's model when a child is stuck (see "Escalation").
 
 The model is set **per child**, because in cross-repo work usually only one side needs it: a UI-heavy frontend plan benefits from Opus, while the backend child does fine on Sonnet with its advisor. An Opus child costs several times a Sonnet one, so the coordinator recommends it per plan (step 3) and the user decides. `--opus` skips the question and runs every child on Opus.
 
@@ -54,7 +54,7 @@ Default: children in parallel, since the locked contract lets each side build ag
 
 A later spawn (second batch, dependent child) runs on a turn a child's note started, not the user, and the app can refuse `start_session` there, in particular for a repo outside this session's folder. Refused → do not retry, and do not build that plan yourself. Tell the user in one line which child is waiting and that a message from them starts it, finish this turn's step 4 reviews, end the turn, and make the same call on their reply. A plan whose child has not started is not DONE, so step 5 waits for it. Ask in plain text, not through a question dialog (`AskUserQuestion`): its answer comes back inside the same turn, which is still not the user's.
 
-First `mcp__ccd_session_mgmt__get_session("self")` → the coordinator's `local_…` id, which every builder prompt needs, and its model.
+First `mcp__ccd_session_mgmt__get_session("self")` → the coordinator's `local_…` id, which every builder prompt needs, its model, and its effort.
 
 **Pick each child's model.**
 - `--opus` → every child on Opus, no question.
@@ -62,6 +62,10 @@ First `mcp__ccd_session_mgmt__get_session("self")` → the coordinator's `local_
 - No UI-heavy plan → all Sonnet, no question.
 
 Any child on Opus → the coordinator must be on Opus or a tier above it (Fable): the app caps a child at its parent's model, so on a cheaper coordinator the choice would silently do nothing. Coordinator on Sonnet or Haiku → stop and ask the user to switch this session to Opus in the model menu first.
+
+**Every child runs at `high` effort**, whatever its model. A builder works through its plan with nobody steering it, and that is the case higher effort is for: it checks more edge cases and verifies more of its work before it reports. `start_session` cannot give a child more effort than its parent, so the way to get there depends on this session's effort:
+- `high` or above → pass `effort: "high"` to `start_session`.
+- Below `high` → leave `effort` out and include the READY line of the builder prompt. When the child's `READY` message arrives: `mcp__ccd_session_mgmt__set_session_effort(<child id>, "high")`, then `SendMessage` the child `GO`. A new level applies from the child's next turn, which is why the child waits before its first task instead of being raised mid-build. The app may ask the user to approve the raise. Declined → send `GO` anyway: the child stays at the effort it inherited from this session (`get_session(<child id>)` shows it), and the report names that level.
 
 For each plan, call `mcp__ccd_session__start_session`:
 - `initiation`: `"user_asked"` (the user asked for builder sessions by invoking this skill)
@@ -71,6 +75,7 @@ For each plan, call `mcp__ccd_session__start_session`:
 - `cwd`: the repo root, when it differs from this session's folder
 - `use_worktree`: `true`, `branch_name`: the slug, `source_branch`: the base branch
 - `model`: the model picked above. Sonnet and Opus = the current id of that tier from the system prompt's model list (e.g. `claude-sonnet-5-5`, `claude-opus-5-5`), also when this session runs on a tier above Opus. A wrong id is silently ignored
+- `effort`: `"high"` when this session is at `high` or above, otherwise omitted (see above)
 - `wake_when_done`: `true`
 - `prompt`: the builder prompt below, filled in
 - `background`: the overall goal across all repos, the other children's repos and what they build, and that the contract is locked
@@ -80,11 +85,12 @@ Record each child's `local_…` session id from the result, and the model it was
 ### 4. Coordinate
 
 Two channels reach this session, and they arrive at different times:
-- `BLOCKED` and `CONTRACT` come as cross-session messages from the child, the moment it sends them. This matters: end-of-turn notes only wake the coordinator once **every** child is idle, so a contract question sent only as a final message would wait while the other child keeps building against the old contract.
+- `READY`, `BLOCKED` and `CONTRACT` come as cross-session messages from the child, the moment it sends them. This matters: end-of-turn notes only wake the coordinator once **every** child is idle, so a contract question sent only as a final message would wait while the other child keeps building against the old contract.
 - `DONE` comes as the end-of-turn note, quoting the start of the child's final message.
 
 Always address a child with `SendMessage` `to` = its `local_…` id from the `start_session` result, not its display name.
 
+- `READY` → raise that child's effort and send `GO` (step 3), once per child: the end-of-turn note of that same turn needs no second `GO`.
 - `BLOCKED: <question>` → answer it from the plans, the contract, or the code. If they cannot settle it, ask the user and send the answer to the child.
 - `CONTRACT: <proposed change>` → decide with the user. Accepted → edit the contract file, then `SendMessage` every affected child: the exact change and the contract path. Rejected → tell the requesting child to build against the contract as it stands.
 - `DONE` → review that repo: `git -C <repo root> log --oneline <base>..<branch>` and `git -C <repo root> diff <base>...<branch>` against the plan's Goal. A finding to fix → `SendMessage` it to that child. This pass checks that the branch does what the plan says; the bug review is step 5's, by a separate reviewer.
@@ -179,7 +185,7 @@ If this session has an advisor tool, call it once before leaving this step, afte
 
 ### 7. Report and ship
 
-Report to the user: per repo the branch, commits, verification result, review rounds run with the model that reviewed (this session's), and what was fixed; then anything still open with severity labels (**High**, **Medium**, **Low**, **Nit**), and the Pre-existing bugs from the reviewers' findings as issue candidates. "Clean" means `/code-review` and the seam check found nothing High or Medium, not that the code is proven bug-free; say it that way.
+Report to the user: per repo the branch, commits, the child's model and effort, verification result, review rounds run with the model that reviewed (this session's), and what was fixed; then anything still open with severity labels (**High**, **Medium**, **Low**, **Nit**), and the Pre-existing bugs from the reviewers' findings as issue candidates. "Clean" means `/code-review` and the seam check found nothing High or Medium, not that the code is proven bug-free; say it that way.
 
 Branches stay unmerged and unpushed until the user says to ship. Then `SendMessage` each child "Run /ship with base <base> --auto-fix --reviewed"; each child opens its own PR from its own repo, and Auto-fix keeps CI and review comments handled there. `--reviewed` skips `/ship`'s own review, since step 5 already did it; its typecheck, lint and tests still run. Merging stays the user's call.
 
@@ -223,6 +229,7 @@ Runs when the user says the PRs are merged ("merged", "the PRs are in", in any l
 You are the builder for plan <absolute plan path> (<N> tasks) in repo <repo root>. The coordinator is session <coordinator id>.
 <Only with 2+ repos:> The API contract is <absolute contract path>. It is locked: read it, build against it exactly, and never edit it. Other repos building against the same contract: <repo: what it builds, one line each>.
 
+<Only when the coordinator's effort is below high:> Before anything else, send SendMessage to "<coordinator id>" with the single line READY, end your turn, and start the plan when the coordinator replies GO.
 1. You are already on your own worktree branch, cut from <base>. Use <execution skill> to execute every task in the plan. Decide on your own between tasks; do not ask the user.
 <Only for an Opus child running subagent-driven-development:> The user chose quality over cost for this run. Override that skill's Model Selection: dispatch every subagent (implementers, reviewers, fixers) with model <opus id>, including tasks that look mechanical.
 2. Each task: its own `Run:` commands from the plan, exit 0, then commit. After the last task: <final verification>, exit 0.
@@ -256,6 +263,7 @@ No push, no merge, no PR, no GitHub comment, no edits outside the plan and the c
 | Sending `/ship` without `--reviewed` | The branch gets a second full review on top of step 5 |
 | Looping forever on a stubborn finding | Stop after the round cap and report it; it is likely a plan or contract issue |
 | Calling the result "bug-free" | Say no High/Medium findings remain from review and seam check |
+| Raising a child's effort while it is already building | The level applies from its next turn; raise it between `READY` and `GO` |
 | Leaving an escalated child on the coordinator's model | Switch it back to the model it was started on as soon as the escalated turn ends |
 | Server app started through `heavy.sh` for the local E2E | It holds the machine-wide lock while it runs, so the client's E2E waits forever; `SERVE` starts it in the background, outside the lock |
 | Reporting local E2E from the child's `E2E:` note | Read `result.md`; the note is a claim, and a fail needs the response to pick the side to fix |
