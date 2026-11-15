@@ -94,6 +94,8 @@ Always address a child with `SendMessage` `to` = its `local_…` id from the `st
 - `BLOCKED: <question>` → answer it from the plans, the contract, or the code. If they cannot settle it, ask the user and send the answer to the child.
 - `CONTRACT: <proposed change>` → decide with the user. Accepted → edit the contract file, then `SendMessage` every affected child: the exact change and the contract path. Rejected → tell the requesting child to build against the contract as it stands.
 - `DONE` → review that repo: `git -C <repo root> log --oneline <base>..<branch>` and `git -C <repo root> diff <base>...<branch>` against the plan's Goal. A finding to fix → `SendMessage` it to that child. This pass checks that the branch does what the plan says; the bug review is step 5's, by a separate reviewer.
+- An end-of-turn note that opens with none of these lines, nor with the reply line a later step asked for (`FIXED`, `SERVING`, `E2E`, `STOPPED`, `COMMENTED`, their `CANNOT` forms) (a question, an error, a child that stopped before `READY`) → the child is idle and nothing will move it. Read the note, then `SendMessage` the child what it needs: the answer, or the step it skipped, and the line its turn must end with. The same child does it a second time → tell the user instead of sending a third message.
+- `DONE` from a child that was given the READY line and never sent it → it built at the effort it inherited. Review it as usual, name that level in the report, and raise the child to `high` (step 3's `set_session_effort` call) before its first `FIX`.
 
 A note is the child's claim, not proof. Check the diff before telling the user anything is done. A DONE line with "no advisor" means the child ran without its quality backstop; review that diff more closely and tell the user.
 
@@ -234,7 +236,7 @@ You are the builder for plan <absolute plan path> (<N> tasks) in repo <repo root
 <Only for an Opus child running subagent-driven-development:> The user chose quality over cost for this run. Override that skill's Model Selection: dispatch every subagent (implementers, reviewers, fixers) with model <opus id>, including tasks that look mechanical.
 2. Each task: its own `Run:` commands from the plan, exit 0, then commit. After the last task: <final verification>, exit 0.
 <Only when `${CLAUDE_SKILL_DIR}/../deliver/scripts/heavy.sh` exists; write its absolute path:> Run every install, test, typecheck and build command as `bash <heavy.sh path> <command>` (a command with `&&`, a pipe or an env prefix: `bash <heavy.sh path> sh -c '<command>'`), in FIX rounds too. It holds a machine-wide lock, so builders in other repos never run two heavy commands at once.
-3. Report to the coordinator only in these cases:
+3. Apart from READY, when the line above asks for it, report to the coordinator only in these cases:
    - BLOCKED: <the question>, when the plan, the contract, and the code cannot settle it.
    - CONTRACT: <the exact change you need and why>, when building to the contract as written is impossible or wrong.
    For these two, first send SendMessage to "<coordinator id>" with that line as the first line, then end your turn and wait for the reply. A final message alone does not reach the coordinator while other builders are still working.
