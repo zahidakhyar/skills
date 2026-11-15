@@ -4,6 +4,16 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-15
+
+### Fixed
+
+- `heavy.sh` no longer removes a live holder's lock when the previous holder finished while a waiter was still checking it with `ps`. A lock counts as stale only while its info still names the holder that was checked. (#32)
+
+### Changed
+
+- `heavy.sh` takes its lock by hard-linking a finished info file into place, and the lock directory stays between runs. Let a heavy command started by an older version finish before updating: that version removes the directory when it releases. (#32)
+
 ## [0.7.1] - 2026-11-15
 
 ### Fixed
