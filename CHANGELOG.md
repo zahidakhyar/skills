@@ -6,10 +6,10 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ### Fixed
 
-- `ship` run again on a branch with an open PR updates that PR's `## Risk` line and Test plan, and turns it into a draft when `--draft` or a High tier with an unverified test asks for one. The new commits used to leave the body as it was, so `pr-review` could read a stale tier.
+- `ship` run again on a branch with an open PR raises that PR's `## Risk` line when the new commits call for a higher tier, adds its Test plan lines, and turns the PR into a draft when `--draft` is set. The new commits used to leave the body as it was, so `pr-review` could read a stale tier.
 - `ship` skips the review only when the branch has an open PR. A branch that was pushed without one used to reach its first PR unreviewed.
 - `ship` opens the PR for a pushed branch that has none, instead of stopping with "nothing to ship". That was the state left behind when `gh pr create` failed after the push.
-- `ship` checks `gh auth status` before the gate, formats `fix:` commits made by the gate, and no longer says lint does not block.
+- `ship` checks that `gh` can reach the repo before the gate, formats `fix:` commits made by the gate, and no longer says lint does not block.
 - `orchestrate` reviews the commits that seam-check and local E2E fixes add before it reports. Those commits used to reach the PR unreviewed, because `ship --reviewed` skips the review there.
 - `orchestrate` fetches each repo's base in step 1 and asks before it builds on a local base that is behind `origin`.
 - `orchestrate` gives a dependent builder the path of its input inside the first builder's worktree, where the unmerged output is.
