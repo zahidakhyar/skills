@@ -4,6 +4,18 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-15
+
+### Added
+
+- `orchestrate` runs every builder at `high` effort, whatever its model. A coordinator below `high` raises the builder between a `READY` message and `GO`, before the first task, and the report names each builder's model and effort. (#27)
+
+### Fixed
+
+- `orchestrate` works from a coordinator on a tier above Opus: an Opus builder no longer needs the coordinator to be on Opus itself, the Opus id comes from the model list, and an escalated builder returns to the model it started on. (#25)
+- `orchestrate` runs 3+ repos in batches of 2, since the coordinator only gets a turn once every builder is idle, and says what to do when the app refuses a later `start_session`. (#26)
+- `orchestrate` handles a builder that ends its turn without an expected line: it answers once, goes to the user the second time, and raises a builder that skipped `READY` before its first `FIX`. (#28)
+
 ## [0.6.0] - 2026-11-13
 
 ### Added
