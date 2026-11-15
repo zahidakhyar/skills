@@ -4,6 +4,13 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Fixed
+
+- `orchestrate` reviews the commits that seam-check and local E2E fixes add before it reports. Those commits used to reach the PR unreviewed, because `ship --reviewed` skips the review there.
+- `orchestrate` fetches each repo's base in step 1 and asks before it builds on a local base that is behind `origin`.
+- `orchestrate` gives a dependent builder the path of its input inside the first builder's worktree, where the unmerged output is.
+- `orchestrate` asks a builder for a `SHIPPED`, `DRAFT` or `NOT SHIPPED` line after `ship`, and for `FIXED` after a finding from the DONE review, so those turns are no longer read as a stalled builder.
+
 ## [0.7.2] - 2026-11-15
 
 ### Fixed
