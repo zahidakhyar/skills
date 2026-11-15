@@ -114,15 +114,17 @@ flowchart TD
     changes[local changes] --> branch[branch + format + commit]
     branch --> tier[risk tier from changed paths]
     tier --> checks[typecheck, lint, related tests]
-    checks --> review[code-review / security-review]
+    checks --> haspr{open PR for<br/>this branch?}
+    haspr -- no --> review[code-review / security-review]
+    haspr -- yes --> fixable
     review --> fixable{red check or<br/>High/Medium finding?}
-    fixable -- no --> push[push + open PR]
+    fixable -- no --> push[push, then open the PR<br/>or update the open one]
     fixable -- "yes, fixed" --> fixcommit[fix: commit, rerun checks]
     fixcommit --> push
     fixable -- "yes, can't fix" --> stop([stop, branch stays local])
 ```
 
-Run again on a branch that already has an open PR, it gates and pushes only the new commits, skips the review (the PR's own review covers them), raises the `## Risk` line when they call for a higher tier, and adds its Test plan lines to that PR. A branch that was pushed without a PR gets the full gate and a new PR.
+Run again on a branch that already has an open PR, it gates and pushes only the new commits, skips the review (the PR's own review covers them), raises the `## Risk` line when they call for a higher tier, and adds its Test plan lines to that PR. A branch that was pushed without a PR gets the full gate and a new PR. With nothing new to push, `--auto-fix`, `--draft` and `--issue` are applied to the open PR as it is.
 
 Example: `/zahidakhyar-skills:ship dev --issue 42 --auto-fix`
 
