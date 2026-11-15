@@ -4,6 +4,10 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Fixed
+
+- `heavy.sh` skips its lock for a nested call only while the `heavy.sh` that started it still holds that same lock. A process that inherited `HEAVY_LOCK_HELD` from a finished holder, or that runs with another `HEAVY_LOCK`, used to run without waiting.
+
 ## [0.7.3] - 2026-11-15
 
 ### Fixed

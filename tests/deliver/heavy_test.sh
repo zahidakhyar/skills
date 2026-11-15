@@ -8,9 +8,6 @@ trap 'rm -rf "$tmp"' EXIT
 fails=0
 fail() { echo "FAIL: $*"; fails=$((fails + 1)); }
 export HEAVY_LOCK="$tmp/lock" HEAVY_POLL_SEC=0.1
-# Run under heavy.sh (ship's gate does that), this test inherits HEAVY_LOCK_HELD,
-# which makes every heavy.sh call below skip the lock it is testing.
-unset HEAVY_LOCK_HELD
 
 # runs and propagates exit code
 rc=0
@@ -120,6 +117,16 @@ if kill -0 "$holder" 2>/dev/null; then
 fi
 wait "$holder" 2>/dev/null || true
 grep -q INNER "$out" || fail "nested heavy.sh did not run the inner command"
+
+# HEAVY_LOCK_HELD inherited from a holder of another lock, or from one that
+# is gone, must not skip this lock
+log="$tmp/foreign.log"
+"$script" sh -c "echo s1 >>'$log'; sleep 1; echo e1 >>'$log'" &
+first=$!
+sleep 0.3
+HEAVY_LOCK_HELD=999999 "$script" sh -c "echo s2 >>'$log'; echo e2 >>'$log'" 2>/dev/null
+wait "$first"
+[ "$(tr '\n' ' ' <"$log")" = "s1 e1 s2 e2 " ] || fail "foreign HEAVY_LOCK_HELD skipped the lock: $(tr '\n' ' ' <"$log")"
 
 # a reap dir that cannot be removed must not kill the script; the wait gives
 # up after HEAVY_WAIT_MAX with exit 124 instead of hanging or exiting 1

@@ -18,21 +18,26 @@
 # HEAVY_POLL_SEC  seconds between attempts (default 5)
 # HEAVY_WAIT_MAX  give up waiting after this many seconds, exit 124 (default 7200)
 #
-# A command run under the lock sees HEAVY_LOCK_HELD; a nested heavy.sh call
-# (e.g. an install inside an E2E block) then runs straight through.
+# A command run under the lock sees HEAVY_LOCK_HELD (the holder's pid); a
+# nested heavy.sh call (e.g. an install inside an E2E block) on the same lock
+# then runs straight through.
 set -euo pipefail
 
 [ $# -gt 0 ] || { echo "usage: heavy.sh <command> [args...]" >&2; exit 2; }
-
-if [ -n "${HEAVY_LOCK_HELD:-}" ]; then
-  exec "$@"
-fi
 
 lock="${HEAVY_LOCK:-${XDG_STATE_HOME:-$HOME/.local/state}/claude-heavy.lock}"
 reap="$lock.reap"
 poll="${HEAVY_POLL_SEC:-5}"
 wait_max="${HEAVY_WAIT_MAX:-7200}"
 info="$lock/info"
+
+# HEAVY_LOCK_HELD is the pid of the heavy.sh that started this process tree.
+# It counts only while that pid still holds this lock: a process that kept the
+# variable after its holder finished, or runs with another HEAVY_LOCK, waits
+# like everyone else.
+if [ -n "${HEAVY_LOCK_HELD:-}" ] && [ "$(sed -n 1p "$info" 2>/dev/null)" = "$HEAVY_LOCK_HELD" ]; then
+  exec "$@"
+fi
 grace=10 # seconds a reap guard may stay before it counts as abandoned
 
 started() { ps -o lstart= -p "$1" 2>/dev/null || true; }
