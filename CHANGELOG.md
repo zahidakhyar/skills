@@ -4,6 +4,12 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-15
+
+### Fixed
+
+- `heavy.sh` no longer lets two commands run at once when several waiters meet a dead holder's lock that has no owner file. On systems where `mkdir` also succeeds on an existing directory, one waiter could take that lock while the others removed it as stale. (#30)
+
 ## [0.7.0] - 2026-11-15
 
 ### Added
