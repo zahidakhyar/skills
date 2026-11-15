@@ -73,7 +73,7 @@ For each plan, call `mcp__ccd_session__start_session`:
 - `prompt`: the builder prompt below, filled in
 - `background`: the overall goal across all repos, the other children's repos and what they build, and that the contract is locked
 
-Record each child's `local_…` session id from the result. Link each one to the user as `[title](#<id>)`.
+Record each child's `local_…` session id from the result, and the model it was started on. Link each one to the user as `[title](#<id>)`.
 
 ### 4. Coordinate
 
@@ -91,7 +91,7 @@ A note is the child's claim, not proof. Check the diff before telling the user a
 
 #### Escalation
 
-Skip this for a child already on this session's model: there is nothing to escalate to, and a child stuck there points at the plan or contract.
+Skip this for a child already on this session's tier (Opus child, Opus coordinator, whatever the exact ids): there is nothing to escalate to, and a child stuck there points at the plan or contract.
 
 Two signals mean the child's model is the bottleneck, not the plan:
 - the same child sends `BLOCKED` twice on the same task, or
