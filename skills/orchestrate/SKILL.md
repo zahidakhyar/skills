@@ -59,7 +59,7 @@ First `mcp__ccd_session_mgmt__get_session("self")` → the coordinator's `local_
 - Otherwise, any UI-heavy plan → ask once, before spawning, in the same message as the contract confirmation when step 2 drafted one: "The <repo> plan is UI-heavy (<count> files). Run the <repo> child on Opus?" Yes → that child on Opus. The other children stay on Sonnet.
 - No UI-heavy plan → all Sonnet, no question.
 
-Any child on Opus → the coordinator must be on Opus too: the app caps a child at its parent's model, so the choice would silently do nothing. Not on Opus → stop and ask the user to switch this session to Opus in the model menu first.
+Any child on Opus → the coordinator must be on Opus or a tier above it (Fable): the app caps a child at its parent's model, so on a cheaper coordinator the choice would silently do nothing. Coordinator on Sonnet or Haiku → stop and ask the user to switch this session to Opus in the model menu first.
 
 For each plan, call `mcp__ccd_session__start_session`:
 - `initiation`: `"user_asked"` (the user asked for builder sessions by invoking this skill)
@@ -68,12 +68,12 @@ For each plan, call `mcp__ccd_session__start_session`:
 - `name`: `<repo-name>-<slug>`, trimmed to 24 chars
 - `cwd`: the repo root, when it differs from this session's folder
 - `use_worktree`: `true`, `branch_name`: the slug, `source_branch`: the base branch
-- `model`: the model picked above. Sonnet = the current Sonnet id from the system prompt's model list (e.g. `claude-sonnet-5-5`); Opus = this session's own model id. A wrong id is silently ignored
+- `model`: the model picked above. Sonnet and Opus = the current id of that tier from the system prompt's model list (e.g. `claude-sonnet-5-5`, `claude-opus-5-5`), also when this session runs on a tier above Opus. A wrong id is silently ignored
 - `wake_when_done`: `true`
 - `prompt`: the builder prompt below, filled in
 - `background`: the overall goal across all repos, the other children's repos and what they build, and that the contract is locked
 
-Record each child's `local_…` session id from the result. Link each one to the user as `[title](#<id>)`.
+Record each child's `local_…` session id from the result, and the model it was started on. Link each one to the user as `[title](#<id>)`.
 
 ### 4. Coordinate
 
@@ -91,13 +91,13 @@ A note is the child's claim, not proof. Check the diff before telling the user a
 
 #### Escalation
 
-Skip this for a child already on Opus: there is nothing to escalate to, and a stuck Opus child points at the plan or contract.
+Skip this for a child already on this session's tier (Opus child, Opus coordinator, whatever the exact ids): there is nothing to escalate to, and a child stuck there points at the plan or contract.
 
-Two signals mean Sonnet is the bottleneck for this child, not the plan:
+Two signals mean the child's model is the bottleneck, not the plan:
 - the same child sends `BLOCKED` twice on the same task, or
 - the review-fix loop (step 5) reaches round 3 with High/Medium still open.
 
-Then, before sending the answer or the round-3 `FIX`: `mcp__ccd_session_mgmt__set_session_model(<child id>, <this session's own model id>)`. The child is idle while it waits, so the switch applies to exactly the turn you are about to start. Using the coordinator's own model avoids an approval prompt and the app's rule that a child cannot outrank its parent. When that turn ends, switch the child back to Sonnet, and mention the escalation in the final report. Escalate one child at a time and only for that turn; escalating as a default just turns the whole run into an Opus run.
+Then, before sending the answer or the round-3 `FIX`: `mcp__ccd_session_mgmt__set_session_model(<child id>, <this session's own model id>)`. The child is idle while it waits, so the switch applies to exactly the turn you are about to start. Using the coordinator's own model avoids an approval prompt and the app's rule that a child cannot outrank its parent. When that turn ends, switch the child back to the model it was started on (step 3), and mention the escalation in the final report. Escalate one child at a time and only for that turn; escalating as a default just turns the whole run into one on the coordinator's model.
 
 ### 5. Review-fix loop per repo (automatic)
 
@@ -253,7 +253,7 @@ No push, no merge, no PR, no GitHub comment, no edits outside the plan and the c
 | Sending `/ship` without `--reviewed` | The branch gets a second full review on top of step 5 |
 | Looping forever on a stubborn finding | Stop after the round cap and report it; it is likely a plan or contract issue |
 | Calling the result "bug-free" | Say no High/Medium findings remain from review and seam check |
-| Leaving an escalated child on Opus | Switch it back to Sonnet as soon as the escalated turn ends |
+| Leaving an escalated child on the coordinator's model | Switch it back to the model it was started on as soon as the escalated turn ends |
 | Server app started through `heavy.sh` for the local E2E | It holds the machine-wide lock while it runs, so the client's E2E waits forever; `SERVE` starts it in the background, outside the lock |
 | Reporting local E2E from the child's `E2E:` note | Read `result.md`; the note is a claim, and a fail needs the response to pick the side to fix |
 | Leaving the server app running after the E2E | Send `STOP` whatever the outcome |
