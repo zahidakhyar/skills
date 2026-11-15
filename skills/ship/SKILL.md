@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Use when the user wants current changes turned into a PR — types `/ship [base] [--issue N] [--draft] [--auto-fix]`, or asks variations of "commit dan push lalu buat PR", "buat branch baru base dev, push, PR target dev", "ship ini", "ship sekalian auto-fix". Covers the full branch → commit → push → PR cycle.
+description: Use when the user wants current changes turned into a PR — types `/ship [base] [--issue N] [--draft] [--auto-fix] [--reviewed]`, or asks variations of "commit dan push lalu buat PR", "buat branch baru base dev, push, PR target dev", "ship ini", "ship sekalian auto-fix". Covers the full branch → commit → push → PR cycle.
 ---
 
 # Ship
@@ -9,7 +9,7 @@ Run the branch → commit → gate → push → PR cycle in one go, without stop
 
 ## Arguments
 
-A token starting with `--` is a flag; the one remaining token is the base/target branch. No base → step 2 decides it.
+A token starting with `--` is a flag, and `--issue` takes the token after it as its value; the one remaining token is the base/target branch. No base → step 2 decides it.
 
 | Flag | Effect |
 |---|---|
@@ -23,7 +23,7 @@ A token starting with `--` is a flag; the one remaining token is the base/target
 1. Check state — `git status --porcelain` + `git log HEAD --not --remotes --oneline 2>/dev/null` (commits not on any remote).
    - `origin` is a GitHub URL → `gh repo view --json name`, which reaches the repo the way `gh pr create` will. An authentication error → stop here with the `gh auth login` instruction, before anything is committed or reviewed for a PR that cannot be created.
    - `origin` is a GitHub URL and this is a feature branch (not `dev`, `develop`, the default branch or the branch the base argument names) → look up its PRs once: `gh pr list --head "$(git branch --show-current)" --state all --json url,state,baseRefName,isDraft,headRefOid`. The one whose state is `OPEN` is "the open PR" that steps 2, 6 and 8 reuse; several open → stop and list them, the user picks. Any other remote, any other branch, or a detached HEAD has no PR to find.
-   - No uncommitted changes AND no unpushed commits → stop: "nothing to ship". One case continues: a feature branch on GitHub with no open PR, no merged or closed PR whose `headRefOid` is `git rev-parse HEAD` (that one already shipped this commit), and commits ahead of its base. Decide the base with step 2 first, then `git rev-list --count "origin/<base>"..HEAD` (`<base>` when it is not on the remote) must be above 0. It was pushed by hand, or an earlier run stopped after the push, so its PR was never created.
+   - No uncommitted changes AND no unpushed commits → stop: "nothing to ship". Two cases do not stop. An open PR and a flag that acts on it (`--auto-fix`, `--draft`, `--issue`) → go straight to step 8's open-PR bullet for `--draft` and `--issue`, then steps 9 and 10; nothing was pushed, so the gate, `## Risk` and the Test plan are left alone. The other case continues through every step: a feature branch on GitHub with no open PR, no merged or closed PR whose `headRefOid` is `git rev-parse HEAD` (that one already shipped this commit), and commits ahead of its base. Decide the base with step 2 first, then `git rev-list --count "origin/<base>"..HEAD` (`<base>` when it is not on the remote) must be above 0. It was pushed by hand, or an earlier run stopped after the push, so its PR was never created.
 
 2. Decide the base/target branch — the open PR from step 1 keeps its base: use its `baseRefName`, and when the argument names another branch, say in the output that it was ignored. No open PR → the argument if given (`/ship main`). Otherwise:
    ```bash
@@ -131,7 +131,7 @@ A token starting with `--` is a flag; the one remaining token is the base/target
      2. Not bound → `mcp__ccd_pr__bind_pr({ url })` first.
      3. `mcp__ccd_pr__set_monitor({ auto_fix: true, address_comments: true, url })`. `address_comments` is required and must equal `auto_fix`; the app rejects the call when only one is sent.
      The approval dialog that appears here belongs to the app, not to the agent asking — it does not violate "no confirmation", do not skip the call.
-   - Without `--auto-fix` → `mcp__ccd_pr__get_status` for CI status, then a one-line offer to turn Auto-fix on. Do not call `set_monitor`. A yes on the next turn runs the same three calls as the flag path. Do not suggest re-running `/ship --auto-fix`: the tree is already clean and pushed, so step 1 stops before reaching here.
+   - Without `--auto-fix` → `mcp__ccd_pr__get_status` for CI status, then a one-line offer to turn Auto-fix on. Do not call `set_monitor`. A yes on the next turn runs the same three calls as the flag path. `/ship --auto-fix` typed later on the same clean branch also gets here, through step 1.
    - `--auto-fix` **never** calls `mcp__ccd_pr__set_auto_merge`. Auto-merge is turned on only when the user asks for it by that word.
    - Do not poll `gh pr checks` after the PR is created; `get_status` already reads CI from the app's cache.
 
@@ -150,6 +150,7 @@ A token starting with `--` is a flag; the one remaining token is the base/target
 | Gate still red after a fix, or a High/Medium finding that cannot be fixed | Stop before push, report it, branch stays local |
 | `--auto-fix`, PR exists (new or existing) | Step 10: bind if needed → `set_monitor` auto_fix + address_comments |
 | `--auto-fix`, no PR got created | Flag skipped, output states why |
+| Clean, pushed, PR open, with `--auto-fix`, `--draft` or `--issue` | No commit, gate or push: the flag is applied to that PR |
 | Nothing to ship | Stop with a message, never create an empty branch/PR |
 
 ## Error handling

@@ -6,6 +6,9 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ### Fixed
 
+- `ship --auto-fix`, `--draft` and `--issue N` on a clean, pushed branch with an open PR are applied to that PR. The run used to stop with "nothing to ship" and drop the flag.
+- `tests/deliver/heavy_test.sh` passes when it is run under `heavy.sh`, which is how `ship`'s gate runs tests.
+
 - `ship` run again on a branch with an open PR raises that PR's `## Risk` line when the new commits call for a higher tier, adds its Test plan lines, and turns the PR into a draft when `--draft` is set. The new commits used to leave the body as it was, so `pr-review` could read a stale tier.
 - `ship` skips the review only when the branch has an open PR. A branch that was pushed without one used to reach its first PR unreviewed.
 - `ship` opens the PR for a pushed branch that has none, instead of stopping with "nothing to ship". That was the state left behind when `gh pr create` failed after the push.

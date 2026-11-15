@@ -114,9 +114,11 @@ flowchart TD
     changes[local changes] --> branch[branch + format + commit]
     branch --> tier[risk tier from changed paths]
     tier --> checks[typecheck, lint, related tests]
-    checks --> review[code-review / security-review]
+    checks --> haspr{open PR for<br/>this branch?}
+    haspr -- no --> review[code-review / security-review]
+    haspr -- yes --> fixable
     review --> fixable{red check or<br/>High/Medium finding?}
-    fixable -- no --> push[push + open PR]
+    fixable -- no --> push[push, then open the PR<br/>or update the open one]
     fixable -- "yes, fixed" --> fixcommit[fix: commit, rerun checks]
     fixcommit --> push
     fixable -- "yes, can't fix" --> stop([stop, branch stays local])

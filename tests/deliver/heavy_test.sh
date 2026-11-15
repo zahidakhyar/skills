@@ -8,6 +8,9 @@ trap 'rm -rf "$tmp"' EXIT
 fails=0
 fail() { echo "FAIL: $*"; fails=$((fails + 1)); }
 export HEAVY_LOCK="$tmp/lock" HEAVY_POLL_SEC=0.1
+# Run under heavy.sh (ship's gate does that), this test inherits HEAVY_LOCK_HELD,
+# which makes every heavy.sh call below skip the lock it is testing.
+unset HEAVY_LOCK_HELD
 
 # runs and propagates exit code
 rc=0
