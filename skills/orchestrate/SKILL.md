@@ -50,7 +50,9 @@ Single repo → skip this step.
 
 ### 3. Spawn the children
 
-Default: children in parallel, since the locked contract lets each side build against it, but **at most 2 working at once**. The limit is local RAM: agent reasoning runs remotely, while each child's `tsc`, test runs, and builds run on this machine and can take 1–2 GB each. With 3+ repos, the rest wait and start as a slot frees up. Run one after another only when one child needs the other's output to exist (a client generated from the backend's OpenAPI file, a migration the other side queries). Then spawn the dependent child after the first reports DONE.
+Default: children in parallel, since the locked contract lets each side build against it, but **at most 2 working at once**. The limit is local RAM: agent reasoning runs remotely, while each child's `tsc`, test runs, and builds run on this machine and can take 1–2 GB each. With 3+ repos, run them in batches of 2: this session gets a turn only once every working child is idle (step 4), so the next batch starts when the whole current batch has reported DONE, not when one of the two finishes. Run one after another only when one child needs the other's output to exist (a client generated from the backend's OpenAPI file, a migration the other side queries). Then spawn the dependent child after the first reports DONE.
+
+A later spawn (second batch, dependent child) runs on a turn a child's note started, not the user, and the app can refuse `start_session` there, in particular for a repo outside this session's folder. Refused → do not retry, and do not build that plan yourself. Tell the user in one line which child is waiting and that a message from them starts it, finish this turn's step 4 reviews, end the turn, and make the same call on their reply. A plan whose child has not started is not DONE, so step 5 waits for it. Ask in plain text, not through a question dialog (`AskUserQuestion`): its answer comes back inside the same turn, which is still not the user's.
 
 First `mcp__ccd_session_mgmt__get_session("self")` → the coordinator's `local_…` id, which every builder prompt needs, and its model.
 
@@ -246,6 +248,7 @@ No push, no merge, no PR, no GitHub comment, no edits outside the plan and the c
 | Prompt says "the plan above" or "as discussed" | Children never saw this conversation; name every path and value |
 | Trusting a DONE note | Read the diff before reporting |
 | Two children writing in the same repo | One child per repo; run same-repo plans in sequence |
+| Retrying a refused `start_session` for a later child, or building its plan here | The turn was not the user's; name the waiting child, end the turn, spawn on their reply |
 | More than 2 repos building or in review at once | Cap at 2; local `tsc`/tests across 3+ repos can exhaust a small machine's RAM |
 | Asking the child to review its own branch | It repeats the assumptions it built with; step 5 spawns a fresh reviewer subagent on the coordinator's model |
 | Passing the reviewer the DONE note or your own read of the diff | It then confirms what it was told; the brief carries paths, base, branch and effort only |
