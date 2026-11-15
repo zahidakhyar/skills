@@ -6,10 +6,19 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ### Fixed
 
+- `ship` run again on a branch with an open PR raises that PR's `## Risk` line when the new commits call for a higher tier, adds its Test plan lines, and turns the PR into a draft when `--draft` is set. The new commits used to leave the body as it was, so `pr-review` could read a stale tier.
+- `ship` skips the review only when the branch has an open PR. A branch that was pushed without one used to reach its first PR unreviewed.
+- `ship` opens the PR for a pushed branch that has none, instead of stopping with "nothing to ship". That was the state left behind when `gh pr create` failed after the push.
+- `ship` checks that `gh` can reach the repo before the gate, formats `fix:` commits made by the gate, and no longer says lint does not block.
 - `orchestrate` reviews the commits that seam-check and local E2E fixes add before it reports. Those commits used to reach the PR unreviewed, because `ship --reviewed` skips the review there.
 - `orchestrate` fetches each repo's base in step 1 and asks before it builds on a local base that is behind `origin`.
 - `orchestrate` gives a dependent builder the path of its input inside the first builder's worktree, where the unmerged output is.
 - `orchestrate` asks a builder for a `SHIPPED`, `DRAFT` or `NOT SHIPPED` line after `ship`, and for `FIXED` after a finding from the DONE review, so those turns are no longer read as a stalled builder.
+
+### Changed
+
+- `ship --issue N` wins over a number found in the branch name or a commit message. A bare `#N` in a commit message is no longer turned into `Closes #N`; it needs a closing keyword (`Closes`, `Fixes`, `Resolves` and their other forms) in front of it.
+- `ship` runs `code-review` in a subagent for Medium and High tiers, so the review is done by a context that did not write the diff. Low tier still runs inline.
 
 ## [0.7.2] - 2026-11-15
 

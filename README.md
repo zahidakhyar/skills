@@ -98,7 +98,7 @@ Branch → format → commit → gate → push → PR, in one command.
 | Flag | Effect |
 |---|---|
 | `base` | Target branch. Default: `dev`, then `develop`, then the repo's default branch |
-| `--issue N` | Adds `Closes #N` when the branch name and commits don't mention an issue. Other repo: `--issue owner/repo#N` |
+| `--issue N` | Adds `Closes #N`. Without it, the number comes from the branch name (`fix/42-slug`) or a `Closes #N` in a commit message. Other repo: `--issue owner/repo#N` |
 | `--draft` | Opens the PR as a draft |
 | `--auto-fix` | Turns on the desktop app's Auto-fix for the PR, so the session wakes on CI failures, conflicts and review comments. Never enables auto-merge |
 | `--reviewed` | Skips the code/security review in the gate (typecheck, lint and tests still run). Used by `orchestrate` |
@@ -107,7 +107,7 @@ What the gate does before anything is pushed:
 
 1. Picks a risk tier (Low / Medium / High) from the changed paths. The tier goes into the PR body as a `## Risk` line, and reviewers use it to set review depth.
 2. Runs typecheck, lint and the related tests, with commands taken from the repo's `package.json` scripts or CI workflow.
-3. Runs `code-review` at the tier's effort, and `security-review` when the diff touches auth, endpoint input, queries, uploads, user HTML or secrets.
+3. Runs `code-review` at the tier's effort (in a subagent for Medium and High, so the session that wrote the code does not review itself), and `security-review` when the diff touches auth, endpoint input, queries, uploads, user HTML or secrets.
 
 ```mermaid
 flowchart TD
@@ -121,6 +121,8 @@ flowchart TD
     fixcommit --> push
     fixable -- "yes, can't fix" --> stop([stop, branch stays local])
 ```
+
+Run again on a branch that already has an open PR, it gates and pushes only the new commits, skips the review (the PR's own review covers them), raises the `## Risk` line when they call for a higher tier, and adds its Test plan lines to that PR. A branch that was pushed without a PR gets the full gate and a new PR.
 
 Example: `/zahidakhyar-skills:ship dev --issue 42 --auto-fix`
 
