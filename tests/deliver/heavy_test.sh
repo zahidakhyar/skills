@@ -124,9 +124,34 @@ log="$tmp/foreign.log"
 "$script" sh -c "echo s1 >>'$log'; sleep 1; echo e1 >>'$log'" &
 first=$!
 sleep 0.3
-HEAVY_LOCK_HELD=999999 "$script" sh -c "echo s2 >>'$log'; echo e2 >>'$log'" 2>/dev/null
+HEAVY_LOCK_HELD='999999|x' "$script" sh -c "echo s2 >>'$log'; echo e2 >>'$log'" 2>/dev/null
 wait "$first"
 [ "$(tr '\n' ' ' <"$log")" = "s1 e1 s2 e2 " ] || fail "foreign HEAVY_LOCK_HELD skipped the lock: $(tr '\n' ' ' <"$log")"
+
+# a real holder of another lock: its child still waits for this one
+log="$tmp/other.log"
+"$script" sh -c "echo s1 >>'$log'; sleep 1; echo e1 >>'$log'" &
+first=$!
+sleep 0.3
+other="$tmp/other"
+env HEAVY_LOCK="$other" "$script" env HEAVY_LOCK="$HEAVY_LOCK" "$script" sh -c "echo s2 >>'$log'; echo e2 >>'$log'" 2>/dev/null
+wait "$first"
+[ "$(tr '\n' ' ' <"$log")" = "s1 e1 s2 e2 " ] || fail "holder of another lock skipped this one: $(tr '\n' ' ' <"$log")"
+
+# this lock, another lock, this lock again: the innermost call must see the
+# outer holder past the one in between, not wait for its own ancestor
+out="$tmp/sandwich.out"
+rc=0
+HEAVY_WAIT_MAX=3 "$script" env HEAVY_LOCK="$other" "$script" env HEAVY_LOCK="$HEAVY_LOCK" "$script" echo INNERMOST >"$out" 2>/dev/null || rc=$?
+[ "$rc" = "0" ] && grep -q INNERMOST "$out" || fail "nested through another lock: exit $rc, want 0"
+
+# a holder that died without releasing: its children no longer skip the lock
+dead=$(sh -c 'echo $$')
+mkdir -p "$HEAVY_LOCK"
+printf '%s\n%s\n%s\n' "$dead" "x" "gone" >"$HEAVY_LOCK/info"
+HEAVY_LOCK_HELD="$dead|x" "$script" true 2>/dev/null
+[ -e "$HEAVY_LOCK/info" ] && fail "child of a dead holder ran without taking the lock"
+rm -rf "$HEAVY_LOCK"
 
 # a reap dir that cannot be removed must not kill the script; the wait gives
 # up after HEAVY_WAIT_MAX with exit 124 instead of hanging or exiting 1

@@ -18,9 +18,9 @@
 # HEAVY_POLL_SEC  seconds between attempts (default 5)
 # HEAVY_WAIT_MAX  give up waiting after this many seconds, exit 124 (default 7200)
 #
-# A command run under the lock sees HEAVY_LOCK_HELD (the holder's pid); a
-# nested heavy.sh call (e.g. an install inside an E2E block) on the same lock
-# then runs straight through.
+# A command run under the lock sees HEAVY_LOCK_HELD (its holders); a nested
+# heavy.sh call (e.g. an install inside an E2E block) on the same lock then
+# runs straight through.
 set -euo pipefail
 
 [ $# -gt 0 ] || { echo "usage: heavy.sh <command> [args...]" >&2; exit 2; }
@@ -30,15 +30,22 @@ reap="$lock.reap"
 poll="${HEAVY_POLL_SEC:-5}"
 wait_max="${HEAVY_WAIT_MAX:-7200}"
 info="$lock/info"
-
-# HEAVY_LOCK_HELD is the pid of the heavy.sh that started this process tree.
-# It counts only while that pid still holds this lock: a process that kept the
-# variable after its holder finished, or runs with another HEAVY_LOCK, waits
-# like everyone else.
-if [ -n "${HEAVY_LOCK_HELD:-}" ] && [ "$(sed -n 1p "$info" 2>/dev/null)" = "$HEAVY_LOCK_HELD" ]; then
-  exec "$@"
-fi
 grace=10 # seconds a reap guard may stay before it counts as abandoned
+
+# HEAVY_LOCK_HELD lists the heavy.sh holders above this process, one
+# "pid|start time" each, joined by ";" (a holder of another lock may sit in
+# between). A nested call runs straight through only while one of them is
+# alive and still named in this lock's info: a process that kept the variable
+# after its holder ended, or runs with another HEAVY_LOCK, waits like everyone
+# else.
+if [ -n "${HEAVY_LOCK_HELD:-}" ]; then
+  h_pid="" h_start=""
+  { IFS= read -r h_pid; IFS= read -r h_start; } 2>/dev/null <"$info" || true
+  case ";$HEAVY_LOCK_HELD;" in
+    *";$h_pid|$h_start;"*)
+      if [ -n "$h_pid" ] && kill -0 "$h_pid" 2>/dev/null; then exec "$@"; fi ;;
+  esac
+fi
 
 started() { ps -o lstart= -p "$1" 2>/dev/null || true; }
 
@@ -139,7 +146,7 @@ trap on_signal INT TERM
 
 # Background + wait, so a TERM to this script is handled at once instead of
 # after the command finishes.
-HEAVY_LOCK_HELD=$$ "$@" &
+HEAVY_LOCK_HELD="${HEAVY_LOCK_HELD:+$HEAVY_LOCK_HELD;}$$|$me_start" "$@" &
 child=$!
 rc=0
 wait "$child" || rc=$?
