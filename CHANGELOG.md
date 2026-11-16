@@ -148,7 +148,13 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/zahidakhyar/skills/compare/v0.7.4...v0.8.0
+[0.7.4]: https://github.com/zahidakhyar/skills/compare/v0.7.3...v0.7.4
+[0.7.3]: https://github.com/zahidakhyar/skills/compare/v0.7.2...v0.7.3
+[0.7.2]: https://github.com/zahidakhyar/skills/compare/v0.7.1...v0.7.2
+[0.7.1]: https://github.com/zahidakhyar/skills/compare/v0.7.0...v0.7.1
+[0.7.0]: https://github.com/zahidakhyar/skills/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/zahidakhyar/skills/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/zahidakhyar/skills/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/zahidakhyar/skills/compare/v0.3.0...v0.4.0
