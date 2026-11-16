@@ -4,6 +4,10 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Changed
+
+- `release` keeps the compare links at the foot of `CHANGELOG.md` current: it points `[Unreleased]` at the new tag and adds the new version's link in the release commit. It used to leave them at the last version someone linked by hand.
+
 ## [0.8.0] - 2026-11-17
 
 ### Changed
