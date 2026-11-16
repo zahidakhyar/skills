@@ -82,6 +82,6 @@ Then try the changed skill for real in a session started with `claude --plugin-d
 
 ## Releasing (maintainer)
 
-1. Move the `Unreleased` entries in `CHANGELOG.md` under a new version heading with today's date.
+1. Move the `Unreleased` entries in `CHANGELOG.md` under a new version heading with today's date, add its compare link at the foot of the file and point `[Unreleased]` at the new tag.
 2. Bump `version` in `.claude-plugin/plugin.json`: patch for fixes, minor for a new skill or flag, major when a skill's arguments or behaviour change in a breaking way. Installed copies are cached per version, so users only get the change after a bump.
 3. Merge to `main`, then tag `vX.Y.Z` and create a GitHub release from the changelog section.
