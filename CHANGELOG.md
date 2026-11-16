@@ -4,9 +4,11 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-17
+
 ### Changed
 
-- `orchestrate` offers the reviewer's Low and Nit findings to the builder as optional fixes in round 1 of the review-fix loop. The builder fixes the small ones and the rest stay in the report as open. They still never decide whether a branch is clean.
+- `orchestrate` offers the reviewer's Low and Nit findings to the builder as optional fixes in round 1 of the review-fix loop. The builder fixes the small ones and the rest stay in the report as open. They still never decide whether a branch is clean. (#40)
 
 ## [0.7.4] - 2026-11-15
 
