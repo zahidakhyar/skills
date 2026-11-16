@@ -4,9 +4,11 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-17
+
 ### Changed
 
-- `release` keeps the compare links at the foot of `CHANGELOG.md` current: it points `[Unreleased]` at the new tag and adds the new version's link in the release commit. It used to leave them at the last version someone linked by hand.
+- `release` keeps the compare links at the foot of `CHANGELOG.md` current: it points `[Unreleased]` at the new tag and adds the new version's link in the release commit. It used to leave them at the last version someone linked by hand. (#43)
 
 ## [0.8.0] - 2026-11-17
 
@@ -148,7 +150,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/zahidakhyar/skills/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/zahidakhyar/skills/compare/v0.7.4...v0.8.0
 [0.7.4]: https://github.com/zahidakhyar/skills/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/zahidakhyar/skills/compare/v0.7.2...v0.7.3
