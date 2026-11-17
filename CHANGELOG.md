@@ -4,6 +4,10 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Fixed
+
+- `review-queue` and `autopilot` send a `recheck` to the session that reviewed that PR before, when one is still unarchived. They used to start a new session for every recheck, so one PR collected a session per round. (#45)
+
 ## [0.9.0] - 2026-11-17
 
 ### Changed
