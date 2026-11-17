@@ -167,6 +167,7 @@ Finds every open PR that requests your review and starts a separate session for 
 ```
 
 - Picks `pr-review` for a PR you never reviewed and `recheck` for one with new commits since your `reviewed:` marker. A PR with no new commits is listed as skipped.
+- A `recheck` runs in the session that reviewed that PR before, when one is still unarchived. A new session starts only when none is left.
 - Reviews in your existing local clones, found by their `origin` remote under `--root` (default `$REVIEW_QUEUE_ROOT`, else `~/Repositories`). Each review runs in its own throwaway worktree, so your checked-out branch is untouched. A missing clone is reported, never cloned for you.
 - `--team` also includes PRs that request a review from one of your teams.
 - Shows the queue and asks once before starting anything. Runs at most 2 review sessions at a time, 1 per repo. When one finishes it reports and offers a "Start next" button for the rest.

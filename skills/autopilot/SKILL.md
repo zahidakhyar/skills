@@ -58,7 +58,7 @@ At start: a `coordinator.session_id` that `mcp__ccd_session_mgmt__list_sessions`
 Runs on `/autopilot` and on every tick.
 
 1. **Issues.** `bash "${CLAUDE_SKILL_DIR}/scripts/issues.sh" --root <root>`. It already drops issues that an open PR closes or mentions as `#N`, whatever the PR's base (closing keywords do nothing on PRs into `dev`, so a delivered issue often stays open). Also drop an item when `items` shows it `started`/`waiting`/`pr-open`/`done`, or when a session named `ap-<repo name>-<N>` is running or waiting.
-2. **Reviews.** `bash "${CLAUDE_SKILL_DIR}/../review-queue/scripts/queue.sh" --root <root>` (no `--new`; autopilot keeps its own state). Keep the `pr-review` / `recheck` rows. Drop those with a session, running or waiting on the user, whose title matches `^(Review|Recheck) <repo name>#<N>:` and whose `cwd` is that PR's clone (`mcp__ccd_session_mgmt__list_sessions` with `limit: 100`, not `linked`: a `review-queue` run may have started it). Match the title, not the `rv-` name: names are trimmed to 24 chars, which can cut off the number.
+2. **Reviews.** `bash "${CLAUDE_SKILL_DIR}/../review-queue/scripts/queue.sh" --root <root>` (no `--new`; autopilot keeps its own state). Keep the `pr-review` / `recheck` rows. Drop those with a session, running or waiting on the user, whose title matches `^(Review|Recheck) <repo name>#<N>:` and whose `cwd` is that PR's clone (`mcp__ccd_session_mgmt__list_sessions` with `limit: 100`, not `linked`: a `review-queue` run may have started it). Match the title, not the `rv-` name: names are trimmed to 24 chars, which can cut off the number. For a kept `recheck` row, an idle, unarchived session matching the same way (the latest `lastActivityAt` when several) is its reuse target.
 3. **Children.** `mcp__ccd_session_mgmt__list_sessions` with `{"linked": true}`. Update each item from its session state and its last line (the prompt below fixes that line's shape): working → `started`; waiting on the user, or a last line `… — blocked: <reason>` → `waiting`; a last line with a PR URL → `pr-open` and store `pr`. A blocked `deliver` run has no PR yet, so never look it up by PR number.
 4. **Merges.** For every item in `pr-open`: `gh pr view <pr> -R <repo> --json state,mergedAt`. When `MERGED` → a phase-2 candidate.
 5. **Slack.** Unless `--no-slack`, follow [references/slack.md](references/slack.md). On any Slack error: leave `slack_last_check` unchanged and carry on. Show "Slack skipped: <reason>" in the pass's table; on a tick with nothing else new, notify it only when the reason differs from the last pass's (store it as `slack_error`).
@@ -87,7 +87,9 @@ If `git worktree add` fails on a lock, wait a few seconds and retry once: siblin
 When done, end with one line: <url> — <PR url | verdict | blocked: reason>.
 ```
 
-Write each started item as `started` with its `session_id`, and link it to the user as `[title](#id)`.
+A `recheck` with a reuse target starts no session: `SendMessage` the Review prompt and the common lines to that session (`to`: its `local_…` id; `notify_when_idle: true` when its `startedBy` is not this session). It takes a slot like a started child, and waits for the same user turn as a start, since `recheck` posts on its own. A send that is not delivered → start a new session for it.
+
+Write each started or reused item as `started` with its `session_id`, and link it to the user as `[title](#id)`.
 
 **When starts are allowed.** The app refuses `start_session` on automated turns: loop ticks and `<side-sessions-event>` turns.
 - `/autopilot` itself is a user turn → start the first batch right away, up to the free slots, without asking. `--dry-run` starts nothing.
