@@ -38,7 +38,7 @@ Empty array → no PR is waiting on the user's review. Still run step 2: its arc
 Call `mcp__ccd_session_mgmt__list_sessions` with `limit: 100` (the default 20 misses older ones), not `linked: true`: children from an earlier run belong to another dispatcher session. A review session is one whose title matches `^(Review|Recheck) [^#]+#([0-9]+):` (the step 4 title; `[^#]+` so a `#N:` inside the PR title is not taken as the number). Find its PR from the title and `cwd`, never from `name` (trimmed to 24 chars, which can cut off the number) and never from `prState` (a review session opens no PR, so the app binds none; the app's `auto_archive_on_pr_close` setting never fires for these either).
 
 - **Open session:** one still running or waiting for the user for a PR in the queue → mark the PR `skip` with reason "session already open" and link that session.
-- **Reuse:** for each `recheck` row with no open session, look for review sessions with `isRunning: false` and `isArchived: false` whose title number and repo name match the row and whose `cwd` equals its `clone`. Several → the one with the latest `lastActivityAt`. Note its `sessionId` and `startedBy` on the row: step 4 sends the recheck there, where the earlier findings already are. None → the row starts a new session.
+- **Reuse:** for each `recheck` row with no open session, look for review sessions with `isRunning: false` and `isArchived: false` whose title number and repo name match the row and whose `cwd` equals its `clone`. Several → the one with the latest `lastActivityAt`. Read its last messages (`mcp__ccd_session_mgmt__list_events`, `limit: 2`): a question to the user or a draft still waiting for their yes → it is an open session, mark the PR `skip` as above. Otherwise note its `sessionId` on the row: step 4 sends the recheck there, where the earlier findings already are. None → the row starts a new session.
 - **Archive sweep:** for every review session with `isRunning: false`, take the number from the title and run `cd <cwd> && gh pr view <number> --json state -q .state </dev/null`, so `gh` resolves the repo from the clone itself (SSH host aliases included). `MERGED` → add it to the archive list as `repo#number` plus the session link. Any other state, a missing `cwd` or a failed lookup → leave the session alone.
 
 ## 3. Confirm once
@@ -55,10 +55,12 @@ First `mcp__ccd_session_mgmt__get_session("self")` → this session's `local_…
 
 **`recheck` row with a session from step 2 → `SendMessage`, not `start_session`:**
 - `to`: that session's `local_…` id, never its `name`
-- `notify_when_idle`: `true` when its `startedBy` is not this session (the app wakes a dispatcher only for children it started itself)
+- `notify_when_idle`: `true`, always: the session may belong to an earlier dispatcher, which the app does not wake this one for
 - `message`: the prompt below, with `recheck`
 
-It counts toward the cap like a started child. A send that is not delivered → start a new session for that row as below, and say so.
+Right before the send, `mcp__ccd_session_mgmt__get_session` on the target: the row may have waited since step 2. Running → leave the row waiting, another sender got there first. Archived or gone → start a new session for that row as below. A send whose result is neither delivered nor queued → the same new session, and say so.
+
+A reused session counts toward the cap like a started child.
 
 Every other row, `mcp__ccd_session__start_session`:
 - `initiation`: `"user_asked"`, `context`: `"fresh"`
@@ -83,6 +85,8 @@ Then, per confirmed archive row, `mcp__ccd_session_mgmt__archive_session` with i
 ## 5. Drain the queue
 
 Start the first batch (up to 2) in the same turn the user confirmed. Later starts need a user turn: the app refuses a session start in another folder on a turn that a `<side-sessions-event>` began, and stops waking this session after several events in a row with no user message.
+
+A `[Cross-session idle notice]` from a reused session is handled like a `<side-sessions-event>`. It fires once: when that session went idle to wait for the user and not because it finished, subscribe again with `SendMessage` (`to`: its id, `notify_when_idle: true`, no `message`).
 
 So on each `<side-sessions-event>`, start nothing. Report in one or two lines which reviews finished and which PRs still wait. While PRs still wait, send one `PushNotification` naming them (the `wrap_up` box does not reach the user's phone), then call `mcp__ccd_turn__wrap_up` with the ask "Start the next reviews?" and a first button labelled "Start next". On the user's click, start the next waiting PRs, in queue order, up to the cap of 2 working and 1 per repo.
 
