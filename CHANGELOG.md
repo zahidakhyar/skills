@@ -4,6 +4,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-19
+
 ### Fixed
 
 - `review-queue` and `autopilot` send a `recheck` to the session that reviewed that PR before, when one is still unarchived. They used to start a new session for every recheck, so one PR collected a session per round. (#45)
@@ -154,7 +156,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/zahidakhyar/skills/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/zahidakhyar/skills/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/zahidakhyar/skills/compare/v0.7.4...v0.8.0
 [0.7.4]: https://github.com/zahidakhyar/skills/compare/v0.7.3...v0.7.4
