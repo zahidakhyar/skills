@@ -78,7 +78,7 @@ Next: <recommendation> — <reason, under 12 words>
 Others: <at most 2 other candidates, one line each>
 ```
 
-No candidates → only `Next: no tracked work left.` Whenever a candidate exists, ask with `AskUserQuestion` (it reaches the user's phone) after the output: first option = the recommendation, labelled "(Recommended)"; second = the top `Others` item, when there is one. `wrap_up`, when the host has it, carries the recap only.
+No candidates → only `Next: no tracked work left.` Whenever a candidate exists, ask it: first option = the recommendation; second = the top `Others` item, when there is one. Host has `wrap_up` → the question is its `ask` and the options its buttons; call it before the output above, so the output is the turn's final message (the app can cut text written before a tool call to a short summary). Host without `wrap_up` → `AskUserQuestion` after the output, the first option labelled "(Recommended)".
 
 ## Never
 
