@@ -7,7 +7,7 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 ### Fixed
 
 - `merged` asks its next-step question through `wrap_up` before printing the output, where the host has `wrap_up`, and sends a `PushNotification` first so the question still reaches the phone. It used to call `AskUserQuestion` after the output (#7), which left the output as non-final text that the desktop app can cut to a short summary. Hosts without `wrap_up` keep `AskUserQuestion`. (#47)
-- `autopilot` asks about each Slack draft in its own question, with the exact text inside it, so the user can send, edit or drop each one. It used to list every draft before a single "Send all?" question, where the desktop app can cut the drafts to a short summary while the user approves them.
+- `autopilot` asks about each Slack draft in its own question, with the exact text inside it, so the user can send, edit or drop each one. It used to list every draft before a single "Send all?" question, where the desktop app can cut the drafts to a short summary while the user approves them. (#48)
 
 ## [0.9.1] - 2026-11-19
 
