@@ -78,7 +78,10 @@ Next: <recommendation> — <reason, under 12 words>
 Others: <at most 2 other candidates, one line each>
 ```
 
-No candidates → only `Next: no tracked work left.` Whenever a candidate exists, ask it: first option = the recommendation; second = the top `Others` item, when there is one. Host has `wrap_up` → the question is its `ask` and the options its buttons; call it before the output above, so the output is the turn's final message (the app can cut text written before a tool call to a short summary). Host without `wrap_up` → `AskUserQuestion` after the output, the first option labelled "(Recommended)".
+No candidates → only `Next: no tracked work left.` Whenever a candidate exists, ask it: first option = the recommendation; second = the top `Others` item, when there is one. Another skill running `/merged` as one of its steps (`orchestrate`) asks in its own report instead; print the output only.
+
+- Host has `mcp__ccd_turn__wrap_up` → call it before the output above, so the output is the turn's final message: the app can cut text written before a tool call to a short summary. That order holds with no candidates too, where `wrap_up` carries the recap alone. With a candidate, first send one `PushNotification` naming the recommendation (the `wrap_up` box does not reach the user's phone), then put the question in `ask` and one button per option. A button is a 1–3 word name for its candidate with no leading `/` ("Continue deliver", "Release"); the full command stays in the `Next:` line.
+- Host without it → `AskUserQuestion` (it reaches the user's phone) after the output, the first option labelled "(Recommended)".
 
 ## Never
 
