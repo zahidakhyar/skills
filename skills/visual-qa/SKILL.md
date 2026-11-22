@@ -28,13 +28,13 @@ Map each changed UI file to the routes that render it, and write them to `$run/r
 - A component → grep its importers up to the pages that use it. Keep at most 3 routes per component, the ones where it is most prominent.
 - A global style, theme or layout → the home route plus the 3 most-visited-looking routes (dashboard, list, form).
 - A component that only shows after an action (sheet, modal, dropdown, error state) → note the action next to the route (`/cart — open the cart sheet`); step 4 captures that state too.
-- Dynamic segment → take a real value from the seed, fixtures or the running app's own list page. None found → ask the user once for one value per segment.
+- Dynamic segment → take a real value from the seed, fixtures or the running app's own list page. None found → ask the user once for one value per segment. When nobody can answer (run from `ship` inside a builder session or an Auto-fix wake-up), mark that route `UNVERIFIED (no value for <segment>)` in the report and go on with the rest.
 
 ## 3. Run the app
 
 `--url` given → use it. Otherwise start it from this checkout: the `## start` section of `.claude/autopilot.md` when it exists, else the `dev` script in `package.json`. Start it with Bash `run_in_background`, on a free port (`lsof -iTCP -sTCP:LISTEN -P`), and wait until the URL answers. Never stop or reuse a process you did not start. The app cannot start → report `Visual QA: UNVERIFIED (<the error line>)` and stop; never mark it passed.
 
-Routes behind a login: build `$run/auth.json` once. A test account in the seed, fixtures or example env → sign in with it through a short `playwright` script that ends with `context.storageState({ path })`. None → ask the user to sign in themselves in `$pw codegen --save-storage=$run/auth.json <URL>/login`, and wait for their word. Never type a password the user gave in chat for a real service.
+Routes behind a login: build `$run/auth.json` once. A test account in the seed, fixtures or example env → sign in with it through a short `playwright` script that ends with `context.storageState({ path })`. None → ask the user to sign in themselves in `$pw codegen --save-storage=$run/auth.json <URL>/login`, and wait for their word; when nobody can answer, the routes behind the login are `UNVERIFIED (needs login)` and the rest still run. Never type a password the user gave in chat for a real service.
 
 ## 4. Capture
 
@@ -64,7 +64,7 @@ Dispatch one fresh `general-purpose` subagent (foreground; `model` = this sessio
 
 Never replace this step with your own look at the screenshots, also when time is short or the change looks small: self-review is the failure this skill exists to stop. The subagent tool is unavailable → report `Visual QA: UNVERIFIED (no independent reviewer)`.
 
-The reply is a defect table plus `VERDICT: PASS` or `VERDICT: FAIL`. Save it as `$run/r<n>/review.md`.
+The reply is a defect table plus `VERDICT: PASS` or `VERDICT: FAIL`. Save the reply verbatim as `$run/r<n>/review.md`, never a summary: round n+1's reviewer gets that table as is.
 
 ## 6. Fix loop
 

@@ -102,7 +102,7 @@ Branch → format → commit → gate → push → PR, in one command.
 | `--issue N` | Adds `Closes #N`. Without it, the number comes from the branch name (`fix/42-slug`) or a `Closes #N` in a commit message. Other repo: `--issue owner/repo#N` |
 | `--draft` | Opens the PR as a draft |
 | `--auto-fix` | Turns on the desktop app's Auto-fix for the PR, so the session wakes on CI failures, conflicts and review comments. Never enables auto-merge |
-| `--reviewed` | Skips the code/security review in the gate (typecheck, lint and tests still run). Used by `orchestrate` |
+| `--reviewed` | Skips the code/security review in the gate (typecheck, lint, tests and visual QA still run). Used by `orchestrate` |
 
 What the gate does before anything is pushed:
 
@@ -120,9 +120,13 @@ flowchart TD
     haspr -- no --> review[code-review / security-review]
     haspr -- yes --> fixable
     review --> fixable{red check or<br/>High/Medium finding?}
-    fixable -- no --> push[push, then open the PR<br/>or update the open one]
+    fixable -- no --> ui{web UI changed?}
     fixable -- "yes, fixed" --> fixcommit[fix: commit, rerun checks]
-    fixcommit --> push
+    fixcommit --> ui
+    ui -- no --> push[push, then open the PR<br/>or update the open one]
+    ui -- yes --> vqa[visual-qa: 4 widths,<br/>independent reviewer]
+    vqa -- PASS --> push
+    vqa -- "FAIL after 3 rounds" --> stop
     fixable -- "yes, can't fix" --> stop([stop, branch stays local])
 ```
 
