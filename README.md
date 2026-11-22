@@ -144,7 +144,7 @@ First review of someone else's PR, posted as a single GitHub review (one notific
 
 - No PR given → lists PRs where your review is requested and asks which one.
 - Checks the PR out in a throwaway worktree under `.worktrees/`, so your working tree is untouched.
-- Runs `code-review`, plus `security-review`, a deploy-window check (migrations, cache keys, worker routing) and an `impeccable` UI audit when the diff calls for them.
+- Runs `code-review`, plus `security-review`, a deploy-window check (migrations, cache keys, worker routing) an `impeccable` UI audit and a [`visual-qa`](#visual-qa) screenshot review (P1 → High, P2 → Medium) when the diff calls for them.
 - Every finding must have a concrete failure scenario and gets a label: **High**, **Medium**, **Low**, **Nit** or **Pre-existing**. Any High/Medium → request changes; otherwise approve.
 - Shows you the draft and posts only after you say yes. `--comment` posts without asking.
 - Writes a hidden `<!-- reviewed: <sha> -->` marker so `recheck` knows what you already saw.
@@ -335,12 +335,13 @@ Turns corrections, confirmed choices and project decisions from the session into
 Screenshots every route the branch changed at four widths and has an independent reviewer judge them before the PR opens.
 
 ```
-/zahidakhyar-skills:visual-qa [base] [--url <base URL>] [--routes <path,...>]
+/zahidakhyar-skills:visual-qa [base] [--url <base URL>] [--routes <path,...>] [--no-fix]
 ```
 
 - Maps changed UI files to routes, starts the app (or uses `--url`), and captures each route at 375, 768, 1280 and 1536 px, in light and, when the app has one, dark mode, with `playwright screenshot`.
 - A fresh subagent that never saw the code reviews the screenshots against a fixed rubric ([`references/rubric.md`](skills/visual-qa/references/rubric.md)): P1 broken, P2 wrong at this width (cramped padding, full-width forms on desktop, a sheet that does not widen), P3 polish.
 - Fixes every P1 and P2, recaptures everything, and asks a new reviewer, up to 3 rounds. Ends with `PASS`, `FAIL` or `UNVERIFIED`; screenshots stay in `.visual-qa/<branch>/`, excluded from git.
+- `--no-fix` reviews only, one round, no commits: `pr-review` uses it on a teammate's PR.
 - `ship` runs it in its gate for web UI changes. Web only: Expo / React Native screens are skipped.
 
 ## Per-repo configuration

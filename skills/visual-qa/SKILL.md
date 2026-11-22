@@ -1,6 +1,6 @@
 ---
 name: visual-qa
-description: Use when a branch changed web UI and the result must be checked as rendered pixels at several viewport widths before a PR — `/visual-qa [base] [--url <base URL>] [--routes <path,...>]`, "cek UI-nya di semua viewport", "screenshot dulu sebelum PR", "visual QA", "cek layout mobile dan desktop", "UI-nya mepet / rusak di layar lain", or when `ship` reaches its visual gate. Not for Expo / React Native screens (use `impeccable` audit there) and not for a design critique of taste.
+description: Use when a branch changed web UI and the result must be checked as rendered pixels at several viewport widths before a PR — `/visual-qa [base] [--url <base URL>] [--routes <path,...>] [--no-fix]`, "cek UI-nya di semua viewport", "screenshot dulu sebelum PR", "visual QA", "cek layout mobile dan desktop", "UI-nya mepet / rusak di layar lain", or when `ship` reaches its visual gate. Not for Expo / React Native screens (use `impeccable` audit there) and not for a design critique of taste.
 ---
 
 # Visual QA
@@ -13,6 +13,7 @@ Arguments:
 - `base`: diff base. Default: the open PR's base, else `dev` → `develop` → the default branch, the first that exists on the remote.
 - `--url <base URL>`: an app that is already running. Without it, step 3 starts one.
 - `--routes <path,...>`: the routes to capture, skipping step 2's mapping.
+- `--no-fix`: review only, for someone else's branch (`pr-review` passes it). One round of steps 1–5, no step 6, no commit and no `result` file; the report lists every defect as `open`.
 
 ## 1. Scope
 
@@ -32,7 +33,7 @@ Map each changed UI file to the routes that render it, and write them to `$run/r
 
 ## 3. Run the app
 
-`--url` given → use it. Otherwise start it from this checkout: the `## start` section of `.claude/autopilot.md` when it exists, else the `dev` script in `package.json`. Start it with Bash `run_in_background`, on a free port (`lsof -iTCP -sTCP:LISTEN -P`), and wait until the URL answers. Never stop or reuse a process you did not start. The app cannot start → report `Visual QA: UNVERIFIED (<the error line>)` and stop; never mark it passed.
+`--url` given → use it. Otherwise start it from this checkout: the `## start` section of `.claude/autopilot.md` when it exists, else the `dev` script in `package.json`. No `node_modules` in this checkout (a fresh worktree) → install with the repo's package manager first, through `heavy.sh` when it exists, and copy the gitignored `.env*` files from the main checkout. Start it with Bash `run_in_background`, on a free port (`lsof -iTCP -sTCP:LISTEN -P`), and wait until the URL answers. Never stop or reuse a process you did not start. The app cannot start → report `Visual QA: UNVERIFIED (<the error line>)` and stop; never mark it passed.
 
 Routes behind a login: build `$run/auth.json` once. A test account in the seed, fixtures or example env → sign in with it through a short `playwright` script that ends with `context.storageState({ path })`. None → ask the user to sign in themselves in `$pw codegen --save-storage=$run/auth.json <URL>/login`, and wait for their word; when nobody can answer, the routes behind the login are `UNVERIFIED (needs login)` and the rest still run. Never type a password the user gave in chat for a real service.
 
@@ -68,6 +69,8 @@ The reply is a defect table plus `VERDICT: PASS` or `VERDICT: FAIL`. Save the re
 
 ## 6. Fix loop
 
+Skipped with `--no-fix`.
+
 `FAIL` (any P1 or P2) → fix each P1 and P2 in the code, commit them as one `fix: visual QA round <n>` commit, then capture **every** route at every width and scheme again into `$run/r<n+1>/`, never only the one that failed, since a fix at one width moves the others. The file set stays the one round 1 had: a state that no longer renders (the sheet that overflowed is gone) is a finding, not a fix. Then a **new** reviewer subagent (step 5) with the earlier table, never the same one.
 
 At most 3 rounds. P3 never blocks and is not fixed unless it is a one-line change.
@@ -76,7 +79,7 @@ A reviewer finding you believe is wrong (the screenshot caught a loading state, 
 
 ## 7. Report
 
-Stop the app you started. Write `<PASS|FAIL|UNVERIFIED> <git rev-parse HEAD>` to `$run/result`, which `ship` reads to skip a second run on unchanged UI. Report:
+Stop the app you started. Except with `--no-fix`, write `<PASS|FAIL|UNVERIFIED> <git rev-parse HEAD>` to `$run/result`, which `ship` reads to skip a second run on unchanged UI. Report:
 
 ```
 Visual QA: <PASS | FAIL | UNVERIFIED> — <R> routes × 4 widths × <schemes>, <n> rounds
