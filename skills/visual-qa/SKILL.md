@@ -19,7 +19,7 @@ Arguments:
 
 `mb=$(git merge-base HEAD origin/<base>)`, then `git diff --name-only "$mb"...HEAD`. UI files are `.tsx`, `.jsx`, `.vue`, `.svelte`, `.astro`, `.html`, `.css`, `.scss`, and Tailwind / theme config, outside test and story files. None → report `Visual QA: skipped (no UI change)` and stop. Only React Native / Expo files → `Visual QA: skipped (native screens)` and stop.
 
-Run folder: `run=<repo root>/.visual-qa/<branch with / replaced by ->`, created fresh. Keep it out of git: `git check-ignore -q .visual-qa/ || echo '.visual-qa/' >> "$(git rev-parse --git-common-dir)/info/exclude"`.
+Run folder: `run=<repo root>/.visual-qa/<branch with each / replaced by -->`, created fresh. Keep it out of git: `git check-ignore -q .visual-qa/ || echo '.visual-qa/' >> "$(git rev-parse --git-common-dir)/info/exclude"`.
 
 ## 2. Routes
 
@@ -33,7 +33,7 @@ Map each changed UI file to the routes that render it, and write them to `$run/r
 
 ## 3. Run the app
 
-`--url` given → use it. Otherwise start it from this checkout: the `## start` section of `.claude/autopilot.md` when it exists, else the `dev` script in `package.json`. No `node_modules` in this checkout (a fresh worktree) → install with the repo's package manager first, through `heavy.sh` when it exists, and copy the gitignored `.env*` files from the main checkout. Start it with Bash `run_in_background`, on a free port (`lsof -iTCP -sTCP:LISTEN -P`), and wait until the URL answers. Never stop or reuse a process you did not start. The app cannot start → report `Visual QA: UNVERIFIED (<the error line>)` and stop; never mark it passed.
+`--url` given → use it. Otherwise start it from this checkout: the `## start` section of `.claude/autopilot.md` when it exists, else the `dev` script in `package.json`. No `node_modules` in this checkout (a fresh worktree) → install with the repo's package manager first, as `bash ${CLAUDE_SKILL_DIR}/../deliver/scripts/heavy.sh <install command>` when that file exists, and copy the gitignored `.env*` files from the main checkout. Start it with Bash `run_in_background`, on a free port (`lsof -iTCP -sTCP:LISTEN -P`), and wait until the URL answers. Never stop or reuse a process you did not start. The app cannot start → report `Visual QA: UNVERIFIED (<the error line>)` and stop; never mark it passed.
 
 Routes behind a login: build `$run/auth.json` once. A test account in the seed, fixtures or example env → sign in with it through a short `playwright` script that ends with `context.storageState({ path })`. None → ask the user to sign in themselves in `$pw codegen --save-storage=$run/auth.json <URL>/login`, and wait for their word; when nobody can answer, the routes behind the login are `UNVERIFIED (needs login)` and the rest still run. Never type a password the user gave in chat for a real service.
 
@@ -48,9 +48,9 @@ For every route × width × scheme, one full-page PNG:
 | 1280 × 800 | laptop, `lg`/`xl` |
 | 1536 × 864 | wide desktop, `2xl` |
 
-Schemes: `light`, plus `dark` when the app has a dark mode (`dark:` classes, a `prefers-color-scheme` rule, or a theme provider). All four widths always run, also when the change "is mobile only": the defects this skill exists for show up at the widths nobody looked at.
+Schemes: `light`, plus `dark` when the app has a dark mode. How dark turns on decides how to capture it: a `prefers-color-scheme` rule, or Tailwind's default `darkMode: 'media'` → `--color-scheme=dark`. Class-based (`darkMode: 'class'` or `'selector'`, `next-themes`, a theme toggle) → a capture script that sets what the app reads before load (`localStorage` key, `dark` class on `<html>`, a cookie) and checks that the class is on before the screenshot. The trigger cannot be found → capture light only and report dark as `UNVERIFIED (dark mode trigger unknown)`, never as passed. All four widths always run, also when the change "is mobile only": the defects this skill exists for show up at the widths nobody looked at.
 
-`$pw` is `npx playwright` when the project already has `playwright` or `@playwright/test` in `node_modules`, else `npx -y playwright@1.64.1`. Run `$pw install chromium-headless-shell` once before the first capture: a Playwright version needs its own browser build, and without it every capture fails with "Please run … npx playwright install".
+`$pw` is `npx playwright` when the project already has `playwright` or `@playwright/test` in `node_modules`, else `npx -y playwright@1.64.1`. Run `$pw install chromium` once before the first capture: a Playwright version needs its own browser build, and without it every capture fails with "Please run … npx playwright install".
 
 ```bash
 $pw screenshot --full-page --viewport-size="375,812" --color-scheme=light \
@@ -73,11 +73,13 @@ Skipped with `--no-fix`.
 
 `FAIL` (any P1 or P2) → fix each P1 and P2 in the code, commit them as one `fix: visual QA round <n>` commit, then capture **every** route at every width and scheme again into `$run/r<n+1>/`, never only the one that failed, since a fix at one width moves the others. The file set stays the one round 1 had: a state that no longer renders (the sheet that overflowed is gone) is a finding, not a fix. Then a **new** reviewer subagent (step 5) with the earlier table, never the same one.
 
-At most 3 rounds. P3 never blocks and is not fixed unless it is a one-line change.
+At most 3 rounds: a `FAIL` in round 3 is final, with no further fix or commit, so nothing reaches the branch that a reviewer has not seen. P3 never blocks and is not fixed unless it is a one-line change.
 
 A reviewer finding you believe is wrong (the screenshot caught a loading state, the "overflow" is an intended carousel) → recapture that one shot with a longer `--wait-for-timeout` or note why, but do not drop it silently: it stays in the report as `disputed` with your reason.
 
 ## 7. Report
+
+The overall verdict is `PASS` only when every route in `routes.md` was captured and reviewed and the last round passed. Any route left `UNVERIFIED` (no value for a segment, needs login, dark trigger unknown) makes the overall verdict `UNVERIFIED`, with the reviewed routes' results still in the table.
 
 Stop the app you started. Except with `--no-fix`, write `<PASS|FAIL|UNVERIFIED> <git rev-parse HEAD>` to `$run/result`, which `ship` reads to skip a second run on unchanged UI. Report:
 
