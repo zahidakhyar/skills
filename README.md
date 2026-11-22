@@ -71,6 +71,7 @@ Plugin skills are namespaced: `/zahidakhyar-skills:ship`, `/zahidakhyar-skills:p
 | [`orchestrate`](#orchestrate) | Build one or more implementation plans in separate sessions |
 | [`deliver`](#deliver) | One task end to end, with E2E proof locally and on dev |
 | [`autopilot`](#autopilot) | Your assistant: picks up issues, review requests and Slack mentions, one session each |
+| [`visual-qa`](#visual-qa) | Check changed web UI at four viewport widths before a PR |
 | [`learned`](#learned) | Save what this session taught Claude to memory |
 
 The first five form one PR loop:
@@ -108,6 +109,7 @@ What the gate does before anything is pushed:
 1. Picks a risk tier (Low / Medium / High) from the changed paths. The tier goes into the PR body as a `## Risk` line, and reviewers use it to set review depth.
 2. Runs typecheck, lint and the related tests, with commands taken from the repo's `package.json` scripts or CI workflow.
 3. Runs `code-review` at the tier's effort (in a subagent for Medium and High, so the session that wrote the code does not review itself), and `security-review` when the diff touches auth, endpoint input, queries, uploads, user HTML or secrets.
+4. Runs [`visual-qa`](#visual-qa) when the branch changed web UI and that UI has not already passed.
 
 ```mermaid
 flowchart TD
@@ -324,6 +326,19 @@ Turns corrections, confirmed choices and project decisions from the session into
 - Also triggers by itself after a correction or "remember this" / "catat ini".
 - `consolidate` merges duplicates and prunes stale memories via `anthropic-skills:consolidate-memory`.
 
+### visual-qa
+
+Screenshots every route the branch changed at four widths and has an independent reviewer judge them before the PR opens.
+
+```
+/zahidakhyar-skills:visual-qa [base] [--url <base URL>] [--routes <path,...>]
+```
+
+- Maps changed UI files to routes, starts the app (or uses `--url`), and captures each route at 375, 768, 1280 and 1536 px, in light and, when the app has one, dark mode, with `playwright screenshot`.
+- A fresh subagent that never saw the code reviews the screenshots against a fixed rubric ([`references/rubric.md`](skills/visual-qa/references/rubric.md)): P1 broken, P2 wrong at this width (cramped padding, full-width forms on desktop, a sheet that does not widen), P3 polish.
+- Fixes every P1 and P2, recaptures everything, and asks a new reviewer, up to 3 rounds. Ends with `PASS`, `FAIL` or `UNVERIFIED`; screenshots stay in `.visual-qa/<branch>/`, excluded from git.
+- `ship` runs it in its gate for web UI changes. Web only: Expo / React Native screens are skipped.
+
 ## Per-repo configuration
 
 The skills read their conventions from the repo they run in. None of these files are required.
@@ -342,6 +357,7 @@ The skills read their conventions from the repo they run in. None of these files
 
 - Claude Code with plugin support.
 - `git`, `gh` (logged in with `gh auth login`) and `jq` on the PATH.
+- `visual-qa` also needs Node (`npx`); it runs a pinned `playwright` through `npx` and installs Chromium on first use.
 
 Optional plugins. The skills skip the step when the plugin is missing:
 

@@ -4,6 +4,10 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- `visual-qa` skill: screenshots every route a branch changed at 375, 768, 1280 and 1536 px (light and dark), has a subagent that never saw the code review them against a fixed rubric, and fixes P1/P2 defects for up to 3 rounds. `ship` runs it in its gate when the branch changes web UI.
+
 ### Fixed
 
 - `merged` asks its next-step question through `wrap_up` before printing the output, where the host has `wrap_up`, and sends a `PushNotification` first so the question still reaches the phone. It used to call `AskUserQuestion` after the output (#7), which left the output as non-final text that the desktop app can cut to a short summary. Hosts without `wrap_up` keep `AskUserQuestion`. (#47)
