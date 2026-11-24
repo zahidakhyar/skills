@@ -71,6 +71,7 @@ Plugin skills are namespaced: `/zahidakhyar-skills:ship`, `/zahidakhyar-skills:p
 | [`orchestrate`](#orchestrate) | Build one or more implementation plans in separate sessions |
 | [`deliver`](#deliver) | One task end to end, with E2E proof locally and on dev |
 | [`autopilot`](#autopilot) | Your assistant: picks up issues, review requests and Slack mentions, one session each |
+| [`visual-qa`](#visual-qa) | Check changed web UI at four viewport widths before a PR |
 | [`learned`](#learned) | Save what this session taught Claude to memory |
 
 The first five form one PR loop:
@@ -101,13 +102,14 @@ Branch → format → commit → gate → push → PR, in one command.
 | `--issue N` | Adds `Closes #N`. Without it, the number comes from the branch name (`fix/42-slug`) or a `Closes #N` in a commit message. Other repo: `--issue owner/repo#N` |
 | `--draft` | Opens the PR as a draft |
 | `--auto-fix` | Turns on the desktop app's Auto-fix for the PR, so the session wakes on CI failures, conflicts and review comments. Never enables auto-merge |
-| `--reviewed` | Skips the code/security review in the gate (typecheck, lint and tests still run). Used by `orchestrate` |
+| `--reviewed` | Skips the code/security review in the gate (typecheck, lint, tests and visual QA still run). Used by `orchestrate` |
 
 What the gate does before anything is pushed:
 
 1. Picks a risk tier (Low / Medium / High) from the changed paths. The tier goes into the PR body as a `## Risk` line, and reviewers use it to set review depth.
 2. Runs typecheck, lint and the related tests, with commands taken from the repo's `package.json` scripts or CI workflow.
 3. Runs `code-review` at the tier's effort (in a subagent for Medium and High, so the session that wrote the code does not review itself), and `security-review` when the diff touches auth, endpoint input, queries, uploads, user HTML or secrets.
+4. Runs [`visual-qa`](#visual-qa) when the branch changed web UI and that UI has not already passed.
 
 ```mermaid
 flowchart TD
@@ -118,9 +120,13 @@ flowchart TD
     haspr -- no --> review[code-review / security-review]
     haspr -- yes --> fixable
     review --> fixable{red check or<br/>High/Medium finding?}
-    fixable -- no --> push[push, then open the PR<br/>or update the open one]
+    fixable -- no --> ui{web UI changed?}
     fixable -- "yes, fixed" --> fixcommit[fix: commit, rerun checks]
-    fixcommit --> push
+    fixcommit --> ui
+    ui -- no --> push[push, then open the PR<br/>or update the open one]
+    ui -- yes --> vqa[visual-qa: 4 widths,<br/>independent reviewer]
+    vqa -- PASS --> push
+    vqa -- "FAIL after 3 rounds" --> stop
     fixable -- "yes, can't fix" --> stop([stop, branch stays local])
 ```
 
@@ -138,7 +144,7 @@ First review of someone else's PR, posted as a single GitHub review (one notific
 
 - No PR given → lists PRs where your review is requested and asks which one.
 - Checks the PR out in a throwaway worktree under `.worktrees/`, so your working tree is untouched.
-- Runs `code-review`, plus `security-review`, a deploy-window check (migrations, cache keys, worker routing) and an `impeccable` UI audit when the diff calls for them.
+- Runs `code-review`, plus `security-review`, a deploy-window check (migrations, cache keys, worker routing) an `impeccable` UI audit and a [`visual-qa`](#visual-qa) screenshot review (P1 → High, P2 → Medium) when the diff calls for them.
 - Every finding must have a concrete failure scenario and gets a label: **High**, **Medium**, **Low**, **Nit** or **Pre-existing**. Any High/Medium → request changes; otherwise approve.
 - Shows you the draft and posts only after you say yes. `--comment` posts without asking.
 - Writes a hidden `<!-- reviewed: <sha> -->` marker so `recheck` knows what you already saw.
@@ -324,6 +330,20 @@ Turns corrections, confirmed choices and project decisions from the session into
 - Also triggers by itself after a correction or "remember this" / "catat ini".
 - `consolidate` merges duplicates and prunes stale memories via `anthropic-skills:consolidate-memory`.
 
+### visual-qa
+
+Screenshots every route the branch changed at four widths and has an independent reviewer judge them before the PR opens.
+
+```
+/zahidakhyar-skills:visual-qa [base] [--url <base URL>] [--routes <path,...>] [--no-fix]
+```
+
+- Maps changed UI files to routes, starts the app (or uses `--url`), and captures each route at 375, 768, 1280 and 1536 px, in light and, when the app has one, dark mode, with `playwright screenshot`.
+- A fresh subagent that never saw the code reviews the screenshots against a fixed rubric ([`references/rubric.md`](skills/visual-qa/references/rubric.md)): P1 broken, P2 wrong at this width (cramped padding, full-width forms on desktop, a sheet that does not widen), P3 polish.
+- Fixes every P1 and P2, recaptures everything, and asks a new reviewer, up to 3 rounds. Ends with `PASS`, `FAIL` or `UNVERIFIED`; screenshots stay in `.visual-qa/<branch>/`, excluded from git.
+- `--no-fix` reviews only, one round, no commits: `pr-review` uses it on a teammate's PR.
+- `ship` runs it in its gate for web UI changes. Web only: Expo / React Native screens are skipped.
+
 ## Per-repo configuration
 
 The skills read their conventions from the repo they run in. None of these files are required.
@@ -342,6 +362,7 @@ The skills read their conventions from the repo they run in. None of these files
 
 - Claude Code with plugin support.
 - `git`, `gh` (logged in with `gh auth login`) and `jq` on the PATH.
+- `visual-qa` also needs Node (`npx`); it runs a pinned `playwright` through `npx` and installs Chromium on first use.
 
 Optional plugins. The skills skip the step when the plugin is missing:
 

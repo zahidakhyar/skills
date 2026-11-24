@@ -15,7 +15,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
 |---|---|
 | `--issue N` | Issue number for `Closes #N`; it wins over a number found in the branch name or a commit message (step 8). Issue in another repo → `--issue owner/repo#N`: the `Closes` line writes it exactly like that, because a bare `#N` points at the PR's repo. |
 | `--draft` | Create the PR as a draft (step 8). In a repo without branch protection, draft is the only thing that keeps an unreviewed PR from being merged. |
-| `--reviewed` | Skip step 6c (code and security review); the checks in 6b still run. Used by `/orchestrate`, whose review-fix loop already reviewed this branch. |
+| `--reviewed` | Skip step 6c (code and security review); the checks in 6b and visual QA in 6e still run. Used by `/orchestrate`, whose review-fix loop already reviewed this branch. |
 | `--auto-fix` | Once the PR exists, turn on the app's Auto-fix switch for it (step 10): this session is woken through `<ci-monitor-event>` when CI fails, a merge conflict appears, or a review comment arrives. Without this flag step 10 only offers it. The name follows the checkbox label in the app's CI popover, not a synonym. |
 
 ## Flow
@@ -69,6 +69,8 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
       The decisions stay in this session. Findings from a subagent arrive without a severity: re-read the code behind each one and set it here before acting. A real bug this diff introduced → fix it. A bug the diff did not introduce → `## Out of scope`. Style-only finding → skip.
 
    d. Result — fixes from (b) and (c) go into a new `fix:` commit on top, never an amend; run step 4's formatter again before that commit, then rerun typecheck and the related tests. Still red after the fix, or a High/Medium finding that cannot be fixed here → stop before the push, report the failing output or the finding, leave the branch local. A check that cannot start on this machine (connection refused to a database or service, missing credentials) → `- [ ] UNVERIFIED:` line, then continue; an assertion that fails is red, not UNVERIFIED. High tier with any UNVERIFIED test line → step 8 creates the PR with `--draft`. Every command run and the review result (`code-review medium` → 3 findings, 2 fixed, 1 out of scope) become step 8's Test plan lines.
+
+   e. Visual QA — runs after (d) on every path that reaches it, also with `--reviewed` and on an open PR where (c) was skipped, when the branch diff touches web UI files (the list in the `visual-qa` skill, step 1). Skip it when `.visual-qa/<branch with each / replaced by -->/result` reads `PASS <sha>` and `git diff --name-only <sha>..HEAD` holds no UI file. Otherwise note `git rev-parse HEAD`, then invoke the `visual-qa` skill inline with `args: "<base>"`. It commits its own fixes; when it added any commit, run step 4's formatter and the (b) checks again, as (d) does, and when (c) ran in this run, run (c)'s reviewer once more on `<noted sha>..HEAD`, so its fixes are not pushed unreviewed. `PASS` → its report line goes into the Test plan. `FAIL` after its last round → stop before the push, like an unfixable High finding. `UNVERIFIED` (the app cannot start, no subagent tool, a route it could not open) → a `- [ ] UNVERIFIED: Visual QA (<reason>)` line, then continue.
 
 7. Push — `git push -u origin <branch>`.
 
@@ -149,6 +151,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
 | An open PR already exists for this branch, new changes or commits | Format → commit if anything changed → gate on the new commits, no review → push → raise `## Risk` if needed and add Test plan lines in that PR, show its URL |
 | Branch pushed, clean tree, never had a PR | Gate on the whole branch, review included → PR |
 | Medium or High tier | `code-review` runs in a `general-purpose` subagent; Low runs inline |
+| Branch diff touches web UI | Step 6e runs `visual-qa`, also with `--reviewed` or an open PR; skipped when the UI already passed at an unchanged commit |
 | README/changelog/copy-only diff | Gate skipped, one Test plan line says so |
 | Specs/plans/design docs only | Checks skipped, review runs at the tier of the code they describe |
 | Gate still red after a fix, or a High/Medium finding that cannot be fixed | Stop before push, report it, branch stays local |
