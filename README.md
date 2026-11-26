@@ -69,6 +69,7 @@ Plugin skills are namespaced: `/zahidakhyar-skills:shipit`, `/zahidakhyar-skills
 | [`merged`](#merged) | A PR was merged and the local leftovers need cleaning |
 | [`release`](#release) | Cut a new version of a JS/TS project or a Claude Code plugin |
 | [`orchestrate`](#orchestrate) | Build one or more implementation plans in separate sessions |
+| [`feature-map`](#feature-map) | Give a repo a map of its user-facing features before `deliver` runs there |
 | [`deliver`](#deliver) | One task end to end, with E2E proof locally and on dev |
 | [`autopilot`](#autopilot) | Your assistant: picks up issues, review requests and Slack mentions, one session each |
 | [`visual-qa`](#visual-qa) | Check changed web UI at four viewport widths before a PR |
@@ -288,8 +289,22 @@ Dev: <n>/<N> pass @ <host> <sha7> | pending merge
 Evidence: <path to report.md>
 ```
 
+- Reads the repo's feature map (`.claude/features/`, see [`feature-map`](#feature-map)) to build its scenarios from known entry points, locators and gotchas. After local E2E passes it creates or updates the entries for the features it drove, in a separate `docs: update feature map` commit that never triggers an E2E rerun. Phase 2 only reads the map.
 - Install, tests, build and the local E2E run one at a time across the whole machine (a lock in `~/.local/state`), so parallel sessions don't freeze a small laptop.
 - Was called `autopilot` up to v0.3.0. Runs started under `.autopilot/` are still found.
+
+### feature-map
+
+Seeds `.claude/features/` in the current repo: a `README.md` plus one file per user-facing feature (how to reach it, a Playwright recipe, gotchas, and when each sub-feature was last verified). `deliver` reads it to write scenarios and keeps the entries it drives current.
+
+```
+/zahidakhyar-skills:feature-map [feature ...]
+```
+
+- Maps the named features, or the 3–5 a user reaches first. Features that already have a file are skipped, and existing entries are never edited.
+- Starts the app in its own worktree, port and database and drives at least one feature end to end; the driven sub-features are dated, the rest are `never` (a hint for `deliver` to check, not a recipe).
+- The app won't start → the map still ships with every sub-feature `never` and an `UNVERIFIED` line in the PR's Test plan.
+- Ships through `shipit` as `docs: seed feature map`.
 
 ### autopilot
 
@@ -358,6 +373,7 @@ The skills read their conventions from the repo they run in. None of these files
 | `dev` / `develop` branch | `shipit`, `orchestrate` | Default PR target when present |
 | `CHANGELOG.md` | `release` | Updated on each release when present |
 | `.claude/autopilot.md` | `deliver`, `autopilot`, `orchestrate` | Local start command, dev URL hint, deploy signal, test-account source (drafted by `deliver` on its first run and committed in that PR). The `## Pickup` section opts the repo into `autopilot` |
+| `.claude/features/` | `deliver`, `feature-map` | Feature map: one file per user-facing feature with its entry points, recipe, gotchas and last-verified commit. Seeded by `feature-map`, kept current by `deliver` |
 
 ## Requirements
 

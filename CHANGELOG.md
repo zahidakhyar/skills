@@ -4,6 +4,11 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- `feature-map` skill: seeds `.claude/features/` in a repo, one file per user-facing feature with its entry points, a Playwright recipe, gotchas and a per-sub-feature `Last verified` line. It drives at least one feature end to end; the rest ship as `never`.
+- `deliver` reads the feature map to build its scenarios, and after local E2E passes it creates or updates the entries of the features it drove in a separate `docs: update feature map` commit. `scripts/code_changed.sh` keeps that commit from triggering an E2E rerun or a `local tested` note.
+
 ## [0.11.0] - 2026-11-26
 
 ### Added
