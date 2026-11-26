@@ -327,6 +327,7 @@ Turns corrections, confirmed choices and project decisions from the session into
 
 - Writes one fact per file to the project's memory directory and updates the `MEMORY.md` index. Updates an existing memory instead of adding a duplicate.
 - Skips what the code, git history or CLAUDE.md already say.
+- A correction a script could catch (a command, flag, git target or file content) also gets an `Enforce` line naming the check: a `PreToolUse` hook, a lint rule or a CI step. A correction that repeats a rule already in memory or CLAUDE.md is flagged `repeat` instead of skipped. After an explicit `/learned` it asks whether to build those checks.
 - Also triggers by itself after a correction or "remember this" / "catat ini".
 - `consolidate` merges duplicates and prunes stale memories via `anthropic-skills:consolidate-memory`.
 
