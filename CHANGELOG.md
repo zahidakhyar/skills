@@ -7,6 +7,7 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 ### Added
 
 - `visual-qa` skill: screenshots every route a branch changed at 375, 768, 1280 and 1536 px (light and dark), has a subagent that never saw the code review them against a fixed rubric, and fixes P1/P2 defects for up to 3 rounds. `shipit` runs it in its gate when the branch changes web UI. `pr-review` runs it with `--no-fix` on a teammate's web UI PR and posts P1/P2 defects as High/Medium findings.
+- `shipit` in the CLI, where the desktop app's Auto-fix is not available, ends its output by telling the user to type `/steward` (Claude Code's built-in PR watcher) so the PR can still be watched for CI failures, conflicts and review comments.
 
 ### Changed
 
