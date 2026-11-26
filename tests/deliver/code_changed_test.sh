@@ -50,5 +50,21 @@ git commit -qam mixed
 [ "$(rc_of "$map" "$mixed_base")" = "0" ] || fail "explicit head code_change: want rc 0"
 [ "$(rc_of "$base" deadbeef)" = "2" ] || fail "explicit bad head: want rc 2"
 
+# empty sha (tested_sha missing from state.json): fail closed, not "no change"
+[ "$(rc_of "")" = "2" ] || fail "empty sha: want rc 2"
+
+# run from a subdirectory: pathspecs resolve from the repo root
+mkdir -p lib
+echo d >lib/b.ts
+git add -A
+git commit -qm lib
+lib_commit=$(git rev-parse HEAD)
+rc=0; (cd src && bash "$script" "$mixed_base" 2>/dev/null) || rc=$?
+[ "$rc" = "0" ] || fail "subdir code change outside cwd: want rc 0, got $rc"
+echo map3 >.claude/features/orders.md
+git commit -qam map3
+rc=0; (cd .claude && bash "$script" "$lib_commit" 2>/dev/null) || rc=$?
+[ "$rc" = "1" ] || fail "subdir map-only: want rc 1, got $rc"
+
 [ "$fails" = 0 ] || exit 1
 echo "code_changed: all tests passed"

@@ -14,12 +14,34 @@ There is no index file. List the features with `head -n1 .claude/features/*.md` 
 
 ## README.md
 
-Four H2s, in this order:
+Whoever creates the directory writes `README.md` as exactly this text, byte for byte, so two branches that each create it merge cleanly. Repo-specific baseline goes into the feature files' `Preconditions:`, never into this file.
 
-1. `Baseline` — preconditions every recipe starts from. Point to `.claude/autopilot.md` for the start command, local URL and test accounts; never copy them here.
-2. `Driving conventions` — web through `playwright-cli` with Playwright locators as targets (`"getByRole('button', { name: 'Save' })"`), never snapshot refs like `e15`, which change every run, nor CSS selectors or position; APIs through `curl`; data created by a run is named `deliver-<sha7>-…`.
-3. `Proof standards` — capture the user action and the resulting state, not only the final screen; a mutation is proven by a second, read-only view of the stored value; a skipped entry point is never reported as verified through another one.
-4. `Entry contract` — the feature-file shape below, in one paragraph.
+```markdown
+# Feature map
+
+One file per user-facing feature. List them with `head -n1 .claude/features/*.md`.
+
+## Baseline
+
+- Start command, local URL and test accounts come from `.claude/autopilot.md`; they are not copied here.
+- Every recipe starts from a freshly seeded app; a recipe lists any extra data it needs under `Preconditions:`.
+
+## Driving conventions
+
+- Web: `playwright-cli` with Playwright locators as targets, such as `"getByRole('button', { name: 'Save' })"`. Never snapshot refs like `e15` (they change every run), CSS selectors or position.
+- APIs: `curl`.
+- Data a run creates is named `deliver-<sha7>-…`.
+
+## Proof standards
+
+- Capture the user action and the resulting state, not only the final screen.
+- A mutation is proven by a second, read-only view of the stored value.
+- A skipped entry point is never reported as verified through another one.
+
+## Entry contract
+
+A feature file has an H1 title, one paragraph of user-visible behaviour, then these H2s in order: `Sub-features`, `How to reach it`, `Drive`, `Gotchas`, `Last verified`. Only user paths, stable handles, commands and observable proof belong here. A dated `Last verified` line is a recipe; `never`, or a date older than the last change to that feature, is a hint to check first.
+```
 
 ## Feature file
 
