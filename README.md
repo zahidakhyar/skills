@@ -56,13 +56,13 @@ Commit this to the project's `.claude/settings.json`. Anyone who opens the proje
 
 ### Calling a skill
 
-Plugin skills are namespaced: `/zahidakhyar-skills:ship`, `/zahidakhyar-skills:pr-review`, and so on. A slash command is optional. Claude also picks the right skill from a plain request, in English or Indonesian ("ship ini", "review PR #123", "sudah ku merge, cleanup").
+Plugin skills are namespaced: `/zahidakhyar-skills:shipit`, `/zahidakhyar-skills:pr-review`, and so on. A slash command is optional. Claude also picks the right skill from a plain request, in English or Indonesian ("ship ini", "review PR #123", "sudah ku merge, cleanup").
 
 ## Skills
 
 | Skill | When to use it |
 |---|---|
-| [`ship`](#ship) | You have local changes and want a PR |
+| [`shipit`](#shipit) | You have local changes and want a PR |
 | [`pr-review`](#pr-review) | A teammate asked you to review their PR |
 | [`recheck`](#recheck) | The author pushed fixes after your review |
 | [`review-queue`](#review-queue) | Work through every PR waiting on your review, one session per PR |
@@ -78,7 +78,7 @@ The first five form one PR loop:
 
 ```mermaid
 flowchart LR
-    ship["ship<br/><i>author</i>"] --> review["pr-review<br/><i>reviewer</i>"]
+    shipit["shipit<br/><i>author</i>"] --> review["pr-review<br/><i>reviewer</i>"]
     review -- "request changes" --> fix["author pushes fixes"]
     fix --> recheck["recheck<br/><i>reviewer</i>"]
     recheck -- "still open" --> fix
@@ -88,12 +88,12 @@ flowchart LR
     merged -. "when cutting a version" .-> release["release<br/><i>maintainer</i>"]
 ```
 
-### ship
+### shipit
 
 Branch → format → commit → gate → push → PR, in one command.
 
 ```
-/zahidakhyar-skills:ship [base] [--issue N] [--draft] [--auto-fix] [--reviewed]
+/zahidakhyar-skills:shipit [base] [--issue N] [--draft] [--auto-fix] [--reviewed]
 ```
 
 | Flag | Effect |
@@ -132,7 +132,7 @@ flowchart TD
 
 Run again on a branch that already has an open PR, it gates and pushes only the new commits, skips the review (the PR's own review covers them), raises the `## Risk` line when they call for a higher tier, and adds its Test plan lines to that PR. A branch that was pushed without a PR gets the full gate and a new PR. With nothing new to push, `--auto-fix`, `--draft` and `--issue` are applied to the open PR as it is.
 
-Example: `/zahidakhyar-skills:ship dev --issue 42 --auto-fix`
+Example: `/zahidakhyar-skills:shipit dev --issue 42 --auto-fix`
 
 ### pr-review
 
@@ -223,8 +223,8 @@ Builds implementation plans in separate builder sessions while the current sessi
 - Two or more repos → locks a shared contract first, or uses `--contract <path>`.
 - A local base branch that is behind `origin` → it asks before building on it.
 - One builder session per plan, each in its own worktree. Builders run on Sonnet at `high` effort by default; the coordinator suggests Opus per plan where it pays off, and `--opus` puts every builder on Opus.
-- When builders finish, each branch is reviewed by a fresh reviewer subagent on the coordinator's model, and the builder fixes what it finds, for up to three rounds. A combined cross-repo check follows, and fixes made after it get one more reviewer pass. Then each builder `ship`s its own PR when you say so.
-- Cross-repo builds also get a local E2E before shipping: the server builder starts its app on a free port with its own database, the client builder runs one scenario per contract endpoint against it. The result goes into the report, and after `ship` into the client PR's Test plan and a comment on every PR. An app that can't start locally is reported as `UNVERIFIED` and does not block the ship; a failing scenario asks you first.
+- When builders finish, each branch is reviewed by a fresh reviewer subagent on the coordinator's model, and the builder fixes what it finds, for up to three rounds. A combined cross-repo check follows, and fixes made after it get one more reviewer pass. Then each builder `shipit`s its own PR when you say so.
+- Cross-repo builds also get a local E2E before shipping: the server builder starts its app on a free port with its own database, the client builder runs one scenario per contract endpoint against it. The result goes into the report, and after `shipit` into the client PR's Test plan and a comment on every PR. An app that can't start locally is reported as `UNVERIFIED` and does not block the ship; a failing scenario asks you first.
 
 ```mermaid
 sequenceDiagram
@@ -253,8 +253,8 @@ sequenceDiagram
     C->>BE: STOP
     C->>You: report per repo, local E2E result
     You->>C: ship it
-    C->>BE: /ship --auto-fix --reviewed
-    C->>FE: /ship --auto-fix --reviewed
+    C->>BE: /shipit --auto-fix --reviewed
+    C->>FE: /shipit --auto-fix --reviewed
     C->>FE: E2E-COMMENT (Test plan lines, comment on every PR)
     You->>C: merged
     C->>You: suggest /deliver continue <FE PR> --with <BE PR> (same scenarios on dev)
@@ -274,9 +274,9 @@ One task carried to evidence: pass criteria, build, local E2E, PR, and after you
 ```
 
 - Phase 1 writes 3–7 pass criteria and one scenario per criterion, builds with TDD in its own worktree under `.worktrees/` (your checkout, uncommitted files and running dev server stay untouched; the local run gets its own port and database), then runs every scenario locally (Playwright via the `playwright-cli` skill for web, HTTP calls for APIs). Evidence goes to `.deliver/<date>-<slug>/` in the main checkout, excluded from git.
-- The app won't start locally → stops before `ship`, with no PR or draft PR, and names what is missing. Otherwise it runs `ship --auto-fix`; the PR's Test plan lists each local scenario, and a result comment (verdict, commit, scenario table) goes on the PR and on the issue the task came from.
+- The app won't start locally → stops before `shipit`, with no PR or draft PR, and names what is missing. Otherwise it runs `shipit --auto-fix`; the PR's Test plan lists each local scenario, and a result comment (verdict, commit, scenario table) goes on the PR and on the issue the task came from.
 - The merge is yours. Tell Claude it is merged and give the dev URL (`merged` also suggests `/deliver continue <PR>`). Phase 2 waits for the merge commit to be live (`/version` endpoint, GitHub Actions, Railway, or the Azure portal through Chrome), reruns the scenarios on dev, and comments the results on the PR and the issue, in the same shape as the local comment.
-- `/deliver continue <PR>` also works on a merged PR that never went through phase 1 (opened with plain `ship`, or built by `orchestrate`): it writes the criteria and scenarios from the PR, its diff and its issue, and dev is the first E2E the change gets. `--with <PR URL> ...` adds PRs from other repos that must be live at the same time; the dev comment then goes on each of them.
+- `/deliver continue <PR>` also works on a merged PR that never went through phase 1 (opened with plain `shipit`, or built by `orchestrate`): it writes the criteria and scenarios from the PR, its diff and its issue, and dev is the first E2E the change gets. `--with <PR URL> ...` adds PRs from other repos that must be live at the same time; the dev comment then goes on each of them.
 - Logs in on dev only when the hostname has a test label (`dev`, `staging`, `test`, `qa`, `sandbox`, `preview`), with test accounts from the repo's seed or fixtures. Never touches prod, never merges.
 - Every phase ends with the same five lines:
 
@@ -342,7 +342,7 @@ Screenshots every route the branch changed at four widths and has an independent
 - A fresh subagent that never saw the code reviews the screenshots against a fixed rubric ([`references/rubric.md`](skills/visual-qa/references/rubric.md)): P1 broken, P2 wrong at this width (cramped padding, full-width forms on desktop, a sheet that does not widen), P3 polish.
 - Fixes every P1 and P2, recaptures everything, and asks a new reviewer, up to 3 rounds. Ends with `PASS`, `FAIL` or `UNVERIFIED`; screenshots stay in `.visual-qa/<branch>/`, excluded from git.
 - `--no-fix` reviews only, one round, no commits: `pr-review` uses it on a teammate's PR.
-- `ship` runs it in its gate for web UI changes. Web only: Expo / React Native screens are skipped.
+- `shipit` runs it in its gate for web UI changes. Web only: Expo / React Native screens are skipped.
 
 ## Per-repo configuration
 
@@ -352,9 +352,9 @@ The skills read their conventions from the repo they run in. None of these files
 |---|---|---|
 | `REVIEW.md` at the repo root | `pr-review`, `recheck` | Overrides the [default review protocol](skills/pr-review/references/review-protocol.md): severity definitions, Nit limit, review language, areas whose bugs are always High. Read from the PR's base branch, so a PR cannot change its own rules |
 | `CLAUDE.md` / `AGENTS.md` | `pr-review`, `recheck` | Project rules that findings and author rebuttals are checked against |
-| `## Risk` line in the PR body | `pr-review` | Sets review depth. `ship` writes it; for PRs opened without it, the tier is derived from the changed files |
-| `package.json` scripts, `.github/workflows/*.yml` | `ship`, `pr-review`, `recheck` | Source of the typecheck, lint and test commands. A green CI check that already runs them is cited instead of re-run |
-| `dev` / `develop` branch | `ship`, `orchestrate` | Default PR target when present |
+| `## Risk` line in the PR body | `pr-review` | Sets review depth. `shipit` writes it; for PRs opened without it, the tier is derived from the changed files |
+| `package.json` scripts, `.github/workflows/*.yml` | `shipit`, `pr-review`, `recheck` | Source of the typecheck, lint and test commands. A green CI check that already runs them is cited instead of re-run |
+| `dev` / `develop` branch | `shipit`, `orchestrate` | Default PR target when present |
 | `CHANGELOG.md` | `release` | Updated on each release when present |
 | `.claude/autopilot.md` | `deliver`, `autopilot`, `orchestrate` | Local start command, dev URL hint, deploy signal, test-account source (drafted by `deliver` on its first run and committed in that PR). The `## Pickup` section opts the repo into `autopilot` |
 
@@ -387,7 +387,8 @@ Installed copies are cached per version (`~/.claude/plugins/cache/<marketplace>/
 
 | Symptom | Fix |
 |---|---|
-| `/zahidakhyar-skills:ship` is not recognised | Start a new session after installing; check `claude plugin details zahidakhyar-skills` |
+| `/zahidakhyar-skills:shipit` is not recognised | Start a new session after installing; check `claude plugin details zahidakhyar-skills` |
+| `/ship` runs Claude Code's own review-and-watch command | That is the built-in `/ship`. This skill is `/shipit`: Claude Code reserves the name `ship` and does not load a custom skill under it |
 | Every skill shows up twice | The skills are loaded from both the plugin and `~/.claude/skills/`. Keep only one (see [local setup](CONTRIBUTING.md#local-setup)) |
 | A change on `main` doesn't arrive | Check that `version` was bumped, then run `claude plugin marketplace update zahidakhyar` |
 | `gh: command not found` / `HTTP 401` | Install `gh` and run `gh auth login` |

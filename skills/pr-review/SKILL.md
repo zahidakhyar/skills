@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Use when reviewing a teammate's pull request for the first time — `/pr-review <PR>`, "review PR #123", "tolong review PR-nya Budi", "ada PR yang minta review", "cek PR tim", "review requested". Not for a PR already reviewed once (that is `/recheck`) and not for your own unpushed changes (`/ship` runs its own gate).
+description: Use when reviewing a teammate's pull request for the first time — `/pr-review <PR>`, "review PR #123", "tolong review PR-nya Budi", "ada PR yang minta review", "cek PR tim", "review requested". Not for a PR already reviewed once (that is `/recheck`) and not for your own unpushed changes (`/shipit` runs its own gate).
 ---
 
 # PR Review
@@ -23,11 +23,11 @@ gh pr view <PR> --json title,body,author,baseRefName,headRefOid,isDraft,files
 
 ## 2. Tier and effort
 
-The tier is the body's `## Risk` line (`Low|Medium|High: …`). No such line → apply the table in the `ship` skill, step 6a, to the PR's files. A repo `REVIEW.md` that defines tiers, or names areas whose bugs are High, wins over that table. Effort: Low → `low`, Medium → `medium`, High → `high`. High tier with more than 1,000 changed lines outside tests, lockfiles and generated files (`gh pr diff <PR> --name-only` plus `files[].additions/deletions`) → `xhigh`: `high` caps the findings and skips verification, which drops real bugs on a diff that size.
+The tier is the body's `## Risk` line (`Low|Medium|High: …`). No such line → apply the table in the `shipit` skill, step 6a, to the PR's files. A repo `REVIEW.md` that defines tiers, or names areas whose bugs are High, wins over that table. Effort: Low → `low`, Medium → `medium`, High → `high`. High tier with more than 1,000 changed lines outside tests, lockfiles and generated files (`gh pr diff <PR> --name-only` plus `files[].additions/deletions`) → `xhigh`: `high` caps the findings and skips verification, which drops real bugs on a diff that size.
 
 Deploy-window pass (step 5.2) is needed when the diff adds a migration, stops reading or writing a column or table, changes a cache key or its invalidation, or changes how work is routed or assigned between workers or users.
 
-Security review is needed when the diff matches the condition in `ship` step 6c (auth, endpoint input, queries built from input, upload, user HTML, secrets/env).
+Security review is needed when the diff matches the condition in `shipit` step 6c (auth, endpoint input, queries built from input, upload, user HTML, secrets/env).
 
 ## 3. Worktree at the PR head
 
@@ -44,7 +44,7 @@ The last command must list only the PR's own commits (compare with `gh pr view <
 
 ## 4. Gates
 
-`gh pr checks <PR>` (it reports the checks of the PR head); `.github/workflows/*.yml` shows what each check runs. A check that runs typecheck and tests is green → cite its name, run nothing locally. No such check, or it is red or pending → run the gates in the worktree per `${CLAUDE_SKILL_DIR}/../ship/references/gates.md` (repo scripts first, related tests only, worker caps), each command as `bash ${CLAUDE_SKILL_DIR}/../deliver/scripts/heavy.sh <command>` when that file exists, so reviews running in other sessions never run two heavy commands at once; copy `.env` and friends from the main checkout first. A gate that cannot start (no database, no credentials) → `UNVERIFIED: <reason>` in the body. A red gate is a High finding quoting the failure, unless the same check is also red on `<base>`, which makes it Pre-existing.
+`gh pr checks <PR>` (it reports the checks of the PR head); `.github/workflows/*.yml` shows what each check runs. A check that runs typecheck and tests is green → cite its name, run nothing locally. No such check, or it is red or pending → run the gates in the worktree per `${CLAUDE_SKILL_DIR}/../shipit/references/gates.md` (repo scripts first, related tests only, worker caps), each command as `bash ${CLAUDE_SKILL_DIR}/../deliver/scripts/heavy.sh <command>` when that file exists, so reviews running in other sessions never run two heavy commands at once; copy `.env` and friends from the main checkout first. A gate that cannot start (no database, no credentials) → `UNVERIFIED: <reason>` in the body. A red gate is a High finding quoting the failure, unless the same check is also red on `<base>`, which makes it Pre-existing.
 
 ## 5. Review
 

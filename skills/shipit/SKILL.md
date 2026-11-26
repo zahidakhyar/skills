@@ -1,6 +1,6 @@
 ---
-name: ship
-description: Use when the user wants current changes turned into a PR — types `/ship [base] [--issue N] [--draft] [--auto-fix] [--reviewed]`, or asks variations of "commit dan push lalu buat PR", "buat branch baru base dev, push, PR target dev", "ship ini", "ship sekalian auto-fix". Covers the full branch → commit → push → PR cycle.
+name: shipit
+description: Use when the user wants current changes turned into a PR — types `/shipit [base] [--issue N] [--draft] [--auto-fix] [--reviewed]`, or asks variations of "commit dan push lalu buat PR", "buat branch baru base dev, push, PR target dev", "ship ini", "ship sekalian auto-fix". Covers the full branch → commit → push → PR cycle.
 ---
 
 # Ship
@@ -25,7 +25,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
    - `origin` is a GitHub URL and this is a feature branch (not `dev`, `develop`, the default branch or the branch the base argument names) → look up its PRs once: `gh pr list --head "$(git branch --show-current)" --state all --json url,state,baseRefName,isDraft,headRefOid`. The one whose state is `OPEN` is "the open PR" that steps 2, 6 and 8 reuse; several open → stop and list them, the user picks. Any other remote, any other branch, or a detached HEAD has no PR to find.
    - No uncommitted changes AND no unpushed commits → stop: "nothing to ship". Two cases do not stop. An open PR and a flag that acts on it (`--auto-fix`, `--draft`, `--issue`) → decide the base with step 2, skip steps 3 to 7, then run step 8's open-PR bullet and steps 9 and 10; nothing was pushed, so `## Risk` and the Test plan are left alone. One of those flags with no open PR to act on → the stop message also says the flag was not applied, and why. The other case continues through every step: a feature branch on GitHub with no open PR, no merged or closed PR whose `headRefOid` is `git rev-parse HEAD` (that one already shipped this commit), and commits ahead of its base. Decide the base with step 2 first, then `git rev-list --count "origin/<base>"..HEAD` (`<base>` when it is not on the remote) must be above 0. It was pushed by hand, or an earlier run stopped after the push, so its PR was never created.
 
-2. Decide the base/target branch — the open PR from step 1 keeps its base: use its `baseRefName`, and when the argument names another branch, say in the output that it was ignored. No open PR → the argument if given (`/ship main`). Otherwise:
+2. Decide the base/target branch — the open PR from step 1 keeps its base: use its `baseRefName`, and when the argument names another branch, say in the output that it was ignored. No open PR → the argument if given (`/shipit main`). Otherwise:
    ```bash
    git branch -a --format='%(refname:short)' | grep -qxE '(origin/)?dev' && echo dev \
      || (git branch -a --format='%(refname:short)' | grep -qxE '(origin/)?develop' && echo develop) \
@@ -43,7 +43,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
    mb=$(git merge-base "origin/<base>" HEAD 2>/dev/null || git merge-base "<base>" HEAD)
    [ -x node_modules/.bin/prettier ] && { git diff --name-only --diff-filter=ACMR -z "$mb"; git ls-files --others --exclude-standard -z; } | xargs -0 node_modules/.bin/prettier --write --ignore-unknown
    ```
-   Diff against the merge-base, not `HEAD`: `git diff HEAD` only sees the working tree, so a branch whose commits were made before `/ship` arrives here with a clean tree and nothing gets formatted. Do not use `pnpm format` — that script rewrites all of `src/**` and fills the PR diff with noise. This is the formatter only; lint (eslint/oxlint) runs in step 6b.
+   Diff against the merge-base, not `HEAD`: `git diff HEAD` only sees the working tree, so a branch whose commits were made before `/shipit` arrives here with a clean tree and nothing gets formatted. Do not use `pnpm format` — that script rewrites all of `src/**` and fills the PR diff with noise. This is the formatter only; lint (eslint/oxlint) runs in step 6b.
 
    **Generated files must be in `.prettierignore` before this step runs** — lockfiles, `openapi.json`, `src/api/generated/`, `dist/`, `coverage/`. Prettier honours `.prettierignore` even for files passed explicitly, but without that file this step would tidy machine artefacts: a reformatted `openapi.json` makes `contract:check` drift, and a lockfile must never be formatted by hand. Repo has no `.prettierignore` yet → create it first and include it in this commit.
 
@@ -63,7 +63,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
 
    c. Review — `code-review` at the effort from (a). Medium and High run in a context that did not write the diff:
       - Low → invoke the `code-review` skill inline with `args: "low <branch>"`.
-      - Medium or High → dispatch one `general-purpose` subagent (foreground) with exactly: "Read only: no edit, commit, push or PR comment. `cd <absolute repo path>` and run every command there. Invoke the `code-review` skill with `args: "<effort> <branch>"`; the range to review is `<base ref>...<branch>`. Return its findings unchanged as your final reply, each with its `path:line`." `<base ref>` is `origin/<base>`, or `<base>` when it is not on the remote: a cold context cannot guess the base. The session that wrote the code shares its blind spots, so the prompt carries no summary of the change and no hint of what to look for. No tool to start a subagent in this session (ship itself runs inside one) → run it inline and say so in the Test plan.
+      - Medium or High → dispatch one `general-purpose` subagent (foreground) with exactly: "Read only: no edit, commit, push or PR comment. `cd <absolute repo path>` and run every command there. Invoke the `code-review` skill with `args: "<effort> <branch>"`; the range to review is `<base ref>...<branch>`. Return its findings unchanged as your final reply, each with its `path:line`." `<base ref>` is `origin/<base>`, or `<base>` when it is not on the remote: a cold context cannot guess the base. The session that wrote the code shares its blind spots, so the prompt carries no summary of the change and no hint of what to look for. No tool to start a subagent in this session (shipit itself runs inside one) → run it inline and say so in the Test plan.
       - `security-review` when the diff touches auth, sessions or permissions, endpoint input (controller, DTO, route handler, server action, webhook), a query built from input, file upload, HTML rendered from user content, or secrets/env handling → one more `general-purpose` subagent (foreground) with "Read only: no edit, commit or push. `cd <absolute repo path>` and run every command there. Invoke the `security-review` skill and return its markdown report as your final reply." Never invoke it inline: its "nothing else" rule arrives as a user message and ends this turn before (d) and the push. Both subagents needed → send them in one message, so they run together.
 
       The decisions stay in this session. Findings from a subagent arrive without a severity: re-read the code behind each one and set it here before acting. A real bug this diff introduced → fix it. A bug the diff did not introduce → `## Out of scope`. Style-only finding → skip.
@@ -80,7 +80,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
      - `--issue N` is set and no `Closes` line names that issue → add one as the first line.
 
      `--draft` is set and `isDraft` is false → `gh pr ready <url> --undo`; step 6d's draft rule applies at creation only, so a PR a human marked ready stays ready.
-   - None yet → find the issue number: the argument (`/ship --issue 271`), then branch name `<type>/<N>-slug`, then a GitHub closing keyword before `#N` in a commit message (`close`/`closes`/`closed`, `fix`/`fixes`/`fixed`, `resolve`/`resolves`/`resolved`). A bare `#N` in a commit message is a mention, not a close. Found → `gh issue view <N> --json title,body` (issue in another repo: `gh issue view <N> -R owner/repo --json title,body`).
+   - None yet → find the issue number: the argument (`/shipit --issue 271`), then branch name `<type>/<N>-slug`, then a GitHub closing keyword before `#N` in a commit message (`close`/`closes`/`closed`, `fix`/`fixes`/`fixed`, `resolve`/`resolves`/`resolved`). A bare `#N` in a commit message is a mention, not a close. Found → `gh issue view <N> --json title,body` (issue in another repo: `gh issue view <N> -R owner/repo --json title,body`).
    - `gh pr create --base <base>` (add `--draft` when the flag is set or step 6d calls for it) with a conventional title and a body in the language the user's rules set for PR descriptions (CLAUDE.md or files it imports); no such rule → English. Section headings are translated into that language too, except the literal `Closes`, `## Risk` and its `Low|Medium|High` value, which other skills parse. The body follows the shape below, in this order. Sections marked *conditional* are written only when their condition holds; no section ever says "none" or "N/A".
 
      ```markdown
@@ -137,7 +137,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
      2. Not bound → `mcp__ccd_pr__bind_pr({ url })` first.
      3. `mcp__ccd_pr__set_monitor({ auto_fix: true, address_comments: true, url })`. `address_comments` is required and must equal `auto_fix`; the app rejects the call when only one is sent.
      The approval dialog that appears here belongs to the app, not to the agent asking — it does not violate "no confirmation", do not skip the call.
-   - Without `--auto-fix` → `mcp__ccd_pr__get_status` for CI status, then a one-line offer to turn Auto-fix on. Do not call `set_monitor`. A yes on the next turn runs the same three calls as the flag path, and so does `/ship --auto-fix` typed later on the same clean branch (step 1 lets it through).
+   - Without `--auto-fix` → `mcp__ccd_pr__get_status` for CI status, then a one-line offer to turn Auto-fix on. Do not call `set_monitor`. A yes on the next turn runs the same three calls as the flag path, and so does `/shipit --auto-fix` typed later on the same clean branch (step 1 lets it through).
    - `--auto-fix` **never** calls `mcp__ccd_pr__set_auto_merge`. Auto-merge is turned on only when the user asks for it by that word.
    - Do not poll `gh pr checks` after the PR is created; `get_status` already reads CI from the app's cache.
 
