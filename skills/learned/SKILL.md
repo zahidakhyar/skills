@@ -36,6 +36,24 @@ Never duplicate. When in doubt, update.
 
 ---
 
+## Step 2b — Route checkable corrections to an enforcer
+
+A memory is a rule the next agent can still skip. For each Correction, ask: could a script have refused the action before the user saw it? It could when the violation shows in a tool call's input (a command, flag, branch, path) or in a file's content, with no judgment needed.
+
+| Correction | Memory | Report line |
+|---|---|---|
+| Checkable, and an existing memory or global rule already says it | Unchanged when it says exactly this; when the correction is stricter or adds to it, update or write the memory per Step 2 | `⚙ Enforce (repeat): [rule] → [check, where]`, listed first |
+| Checkable, new | Write it (Step 3) | `⚙ Enforce: [rule] → [check, where]` |
+| Judgment (tone, length, scope, design) | Write it (Step 3) | none |
+
+A repeat gets its `Enforce (repeat)` line and no `Skipped` line: the prose rule was there and failed, so the violation itself is the finding.
+
+Where the check lives: a tool call (command, flag, git target) → a Claude Code `PreToolUse` hook in `settings.json`, built through the `update-config` skill; code in a repo → that repo's lint config, a test, or a CI step.
+
+Name the check here; don't build it. After an explicit `/learned`, ask once with `AskUserQuestion` whether to build the listed checks, repeats first. An auto-invocation mid-task ends at the report line and the task continues.
+
+---
+
 ## Step 3 — Write each memory
 
 **Memory directory.** The harness names it in the system prompt's `# Memory` section (`~/.claude/projects/<encoded-cwd>/memory/`) and guarantees it exists: write there directly, no `mkdir`, no existence check. Derive it only when that section is missing (Claude Code encodes the project path by replacing `/` and `.` with `-`):
@@ -90,9 +108,11 @@ Keep existing entries intact. Index stays under 200 lines — if it grows past t
 
 ## Step 5 — Report
 
-Report only what changed, one line per memory, then stop:
+Report only what changed, one line per memory and one per enforcer from Step 2b, then stop:
 ```
 Learned:
+⚙ Enforce (repeat): [rule] → [check, where]
+⚙ Enforce: [rule] → [check, where]
 ✓ New: [slug].md — [one-line]
 ✓ Updated: user-profile.md — added [what]
 ✗ Deleted: [slug].md — [why it was wrong]
@@ -107,6 +127,11 @@ Learned:
   <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
     <span style="font-size: 15px; font-weight: 500;">[project]</span>
     <span style="font-size: 13px; color: var(--text-muted);">[today YYYY-MM-DD]</span>
+  </div>
+  <div style="display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-top: 0.5px solid var(--border);">
+    <span style="font-size: 12px; padding: 2px 8px; border-radius: var(--radius); background: var(--bg-warning); color: var(--text-warning); white-space: nowrap;"><i class="ti ti-shield-check" aria-hidden="true"></i> Enforce</span>
+    <span style="font-size: 13px; white-space: nowrap;">[rule] (repeat)</span>
+    <span style="font-size: 13px; color: var(--text-secondary);">[check, where]</span>
   </div>
   <div style="display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-top: 0.5px solid var(--border);">
     <span style="font-size: 12px; padding: 2px 8px; border-radius: var(--radius); background: var(--bg-success); color: var(--text-success); white-space: nowrap;"><i class="ti ti-plus" aria-hidden="true"></i> New</span>
@@ -130,7 +155,7 @@ Learned:
 </div>
 ```
 
-Nothing else.
+Nothing else, except Step 2b's question after an explicit `/learned` whose report has an `Enforce` line.
 
 ---
 
