@@ -101,7 +101,7 @@ Branch → format → commit → gate → push → PR, in one command.
 | `base` | Target branch. Default: `dev`, then `develop`, then the repo's default branch |
 | `--issue N` | Adds `Closes #N`. Without it, the number comes from the branch name (`fix/42-slug`) or a `Closes #N` in a commit message. Other repo: `--issue owner/repo#N` |
 | `--draft` | Opens the PR as a draft |
-| `--auto-fix` | Turns on the desktop app's Auto-fix for the PR, so the session wakes on CI failures, conflicts and review comments. Never enables auto-merge |
+| `--auto-fix` | Turns on the desktop app's Auto-fix for the PR, so the session wakes on CI failures, conflicts and review comments. Never enables auto-merge. In the CLI, where Auto-fix does not exist, the output ends by telling you to type `/steward`, Claude Code's built-in PR watcher |
 | `--reviewed` | Skips the code/security review in the gate (typecheck, lint, tests and visual QA still run). Used by `orchestrate` |
 
 What the gate does before anything is pushed:

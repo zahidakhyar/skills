@@ -132,6 +132,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
 9. Output — the PR URL, then a 1-line summary (branch, target, diff size from `git diff --shortstat origin/<base>...HEAD`, or `<base>...HEAD` when base is not on the remote, same as step 4). Diff >400 LOC → add one line suggesting a split; do not block. Step 10's line, when it has one, comes last.
 
 10. Auto-fix — only when step 8 produced a PR URL (newly created or already open). No URL (no remote, remote is not GitHub) → `--auto-fix` does nothing; say in the output that the flag was skipped and why.
+   - No `mcp__ccd_pr__*` tools in this session (the CLI, not the desktop app) → skip the calls below, with or without the flag. The output's last line is: `Auto-fix runs only in the desktop app. To watch this PR here, type /steward.` `/steward` is Claude Code's built-in PR watcher (CI failures, conflicts, review comments; v2.1.330 or later) and only a line the user types starts it, so never invoke it yourself.
    - With `--auto-fix`, in this order:
      1. `mcp__ccd_pr__get_status` — check whether the PR bar is already bound to this PR. The app's cache can lag behind a `gh pr create` that just ran, so a PR missing here is not an error.
      2. Not bound → `mcp__ccd_pr__bind_pr({ url })` first.
@@ -157,6 +158,7 @@ A token starting with `--` is a flag, and `--issue` takes the token after it as 
 | Gate still red after a fix, or a High/Medium finding that cannot be fixed | Stop before push, report it, branch stays local |
 | `--auto-fix`, PR exists (new or existing) | Step 10: bind if needed → `set_monitor` auto_fix + address_comments |
 | `--auto-fix`, no PR got created | Flag skipped, output states why |
+| PR exists, no `ccd_pr` tools (CLI) | No `set_monitor`; last line tells the user to type `/steward` |
 | Clean, pushed, PR open, with `--auto-fix`, `--draft` or `--issue` | No commit, gate or push: the flag is applied to that PR |
 | Nothing to ship | Stop with a message, never create an empty branch/PR |
 
