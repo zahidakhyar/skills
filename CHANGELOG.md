@@ -4,10 +4,12 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-26
+
 ### Added
 
-- `feature-map` skill: seeds `.claude/features/` in a repo, one file per user-facing feature with its entry points, a Playwright recipe, gotchas and a per-sub-feature `Last verified` line. It drives at least one feature end to end; the rest ship as `never`.
-- `deliver` reads the feature map to build its scenarios, and after local E2E passes it creates or updates the entries of the features it drove in a separate `docs: update feature map` commit. `scripts/code_changed.sh` keeps that commit from triggering an E2E rerun or a `local tested` note.
+- `feature-map` skill: seeds `.claude/features/` in a repo, one file per user-facing feature with its entry points, a Playwright recipe, gotchas and a per-sub-feature `Last verified` line. It drives at least one feature end to end; the rest ship as `never`. (#55)
+- `deliver` reads the feature map to build its scenarios, and after local E2E passes it creates or updates the entries of the features it drove in a separate `docs: update feature map` commit. `scripts/code_changed.sh` keeps that commit from triggering an E2E rerun or a `local tested` note. (#55)
 
 ## [0.11.0] - 2026-11-26
 
@@ -183,7 +185,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/zahidakhyar/skills/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/zahidakhyar/skills/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/zahidakhyar/skills/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/zahidakhyar/skills/compare/v0.9.0...v0.9.1
