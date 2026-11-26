@@ -4,14 +4,16 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-26
+
 ### Added
 
-- `visual-qa` skill: screenshots every route a branch changed at 375, 768, 1280 and 1536 px (light and dark), has a subagent that never saw the code review them against a fixed rubric, and fixes P1/P2 defects for up to 3 rounds. `shipit` runs it in its gate when the branch changes web UI. `pr-review` runs it with `--no-fix` on a teammate's web UI PR and posts P1/P2 defects as High/Medium findings.
-- `shipit` in the CLI, where the desktop app's Auto-fix is not available, ends its output by telling the user to type `/steward` (Claude Code's built-in PR watcher) so the PR can still be watched for CI failures, conflicts and review comments.
+- `visual-qa` skill: screenshots every route a branch changed at 375, 768, 1280 and 1536 px (light and dark), has a subagent that never saw the code review them against a fixed rubric, and fixes P1/P2 defects for up to 3 rounds. `shipit` runs it in its gate when the branch changes web UI. `pr-review` runs it with `--no-fix` on a teammate's web UI PR and posts P1/P2 defects as High/Medium findings. (#49)
+- `shipit` in the CLI, where the desktop app's Auto-fix is not available, ends its output by telling the user to type `/steward` (Claude Code's built-in PR watcher) so the PR can still be watched for CI failures, conflicts and review comments. (#51)
 
 ### Changed
 
-- **Breaking:** `ship` is renamed to `shipit`. Claude Code with the built-in `/ship` (v2.1.330 or later) reserves `ship`, `ship-local` and `steward` for its built-in `/ship` and `/steward` and no longer loads a custom skill with those names, so `/ship`, and the `ship` calls in `deliver` and `orchestrate`, ran the built-in command or nothing. Type `/shipit` (`/zahidakhyar-skills:shipit` for the plugin); with symlinks, replace `~/.claude/skills/ship` with a link to `skills/shipit`. Flags and behaviour are unchanged.
+- **Breaking:** `ship` is renamed to `shipit`. Claude Code with the built-in `/ship` (v2.1.330 or later) reserves `ship`, `ship-local` and `steward` for its built-in `/ship` and `/steward` and no longer loads a custom skill with those names, so `/ship`, and the `ship` calls in `deliver` and `orchestrate`, ran the built-in command or nothing. Type `/shipit` (`/zahidakhyar-skills:shipit` for the plugin); with symlinks, replace `~/.claude/skills/ship` with a link to `skills/shipit`. Flags and behaviour are unchanged. (#50)
 
 ### Fixed
 
@@ -170,7 +172,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/zahidakhyar/skills/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/zahidakhyar/skills/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/zahidakhyar/skills/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/zahidakhyar/skills/compare/v0.7.4...v0.8.0
