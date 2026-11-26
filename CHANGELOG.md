@@ -4,9 +4,11 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-26
+
 ### Added
 
-- `learned` routes a correction or do/don't preference that a script could catch (a command, flag, git target or file content) to an `Enforce` line in its report that names the check: a `PreToolUse` hook, a lint rule or a CI step. A correction repeating a rule already in memory or CLAUDE.md is reported as `Enforce (repeat)` instead of `Skipped`, since the written rule did not prevent it. After an explicit `/learned` it asks whether to build the checks; auto-invocations only report them.
+- `learned` routes a correction or do/don't preference that a script could catch (a command, flag, git target or file content) to an `Enforce` line in its report that names the check: a `PreToolUse` hook, a lint rule or a CI step. A correction repeating a rule already in memory or CLAUDE.md is reported as `Enforce (repeat)` instead of `Skipped`, since the written rule did not prevent it. After an explicit `/learned` it asks whether to build the checks; auto-invocations only report them. (#53)
 
 ## [0.10.0] - 2026-11-26
 
@@ -176,7 +178,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/zahidakhyar/skills/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/zahidakhyar/skills/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/zahidakhyar/skills/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/zahidakhyar/skills/compare/v0.8.0...v0.9.0
