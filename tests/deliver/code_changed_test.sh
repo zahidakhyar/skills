@@ -45,5 +45,10 @@ git commit -qam mixed
 # bad_sha
 [ "$(rc_of deadbeef)" = "2" ] || fail "bad_sha: want rc 2"
 
+# explicit head: compares <sha>..<head>, not HEAD
+[ "$(rc_of "$base" "$map")" = "1" ] || fail "explicit head map_only: want rc 1"
+[ "$(rc_of "$map" "$mixed_base")" = "0" ] || fail "explicit head code_change: want rc 0"
+[ "$(rc_of "$base" deadbeef)" = "2" ] || fail "explicit bad head: want rc 2"
+
 [ "$fails" = 0 ] || exit 1
 echo "code_changed: all tests passed"

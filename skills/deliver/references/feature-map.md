@@ -35,7 +35,7 @@ Only user paths, stable handles, commands and observable proof belong in the map
 
 ## Rules for writers
 
-- Write from what actually ran in this session, never from reading the code alone. A sub-feature not driven in this run keeps its existing `Last verified` line; a new one gets `never`.
+- Write from what actually ran in this session, never from reading the code alone. A sub-feature driven in this run gets a dated `Last verified` line; one not driven keeps its existing line, or gets `never` when it is new.
 - A step that no longer matches the app is corrected in place. Never add a second recipe beside a stale one.
 - A gotcha hit during a fix round goes into `Gotchas`, phrased as the trap and how to avoid it.
 - A dated `Last verified` line is rewritten only by a run that drove that sub-feature.
