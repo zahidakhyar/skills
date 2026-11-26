@@ -7,7 +7,7 @@ body:
     attributes:
       label: Skill
       options:
-        - ship
+        - shipit
         - pr-review
         - recheck
         - merged
@@ -21,7 +21,7 @@ body:
     id: prompt
     attributes:
       label: What you asked
-      description: The exact command or prompt, e.g. `/zahidakhyar-skills:ship dev --auto-fix`.
+      description: The exact command or prompt, e.g. `/zahidakhyar-skills:shipit dev --auto-fix`.
     validations:
       required: true
   - type: textarea

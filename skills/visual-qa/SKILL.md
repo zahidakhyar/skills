@@ -1,6 +1,6 @@
 ---
 name: visual-qa
-description: Use when a branch changed web UI and the result must be checked as rendered pixels at several viewport widths before a PR — `/visual-qa [base] [--url <base URL>] [--routes <path,...>] [--no-fix]`, "cek UI-nya di semua viewport", "screenshot dulu sebelum PR", "visual QA", "cek layout mobile dan desktop", "UI-nya mepet / rusak di layar lain", or when `ship` reaches its visual gate. Not for Expo / React Native screens (use `impeccable` audit there) and not for a design critique of taste.
+description: Use when a branch changed web UI and the result must be checked as rendered pixels at several viewport widths before a PR — `/visual-qa [base] [--url <base URL>] [--routes <path,...>] [--no-fix]`, "cek UI-nya di semua viewport", "screenshot dulu sebelum PR", "visual QA", "cek layout mobile dan desktop", "UI-nya mepet / rusak di layar lain", or when `shipit` reaches its visual gate. Not for Expo / React Native screens (use `impeccable` audit there) and not for a design critique of taste.
 ---
 
 # Visual QA
@@ -29,7 +29,7 @@ Map each changed UI file to the routes that render it, and write them to `$run/r
 - A component → grep its importers up to the pages that use it. Keep at most 3 routes per component, the ones where it is most prominent.
 - A global style, theme or layout → the home route plus the 3 most-visited-looking routes (dashboard, list, form).
 - A component that only shows after an action (sheet, modal, dropdown, error state) → note the action next to the route (`/cart — open the cart sheet`); step 4 captures that state too.
-- Dynamic segment → take a real value from the seed, fixtures or the running app's own list page. None found → ask the user once for one value per segment. When nobody can answer (run from `ship` inside a builder session or an Auto-fix wake-up), mark that route `UNVERIFIED (no value for <segment>)` in the report and go on with the rest.
+- Dynamic segment → take a real value from the seed, fixtures or the running app's own list page. None found → ask the user once for one value per segment. When nobody can answer (run from `shipit` inside a builder session or an Auto-fix wake-up), mark that route `UNVERIFIED (no value for <segment>)` in the report and go on with the rest.
 
 ## 3. Run the app
 
@@ -81,7 +81,7 @@ A reviewer finding you believe is wrong (the screenshot caught a loading state, 
 
 The overall verdict is `PASS` only when every route in `routes.md` was captured and reviewed and the last round passed. Any route left `UNVERIFIED` (no value for a segment, needs login, dark trigger unknown) makes the overall verdict `UNVERIFIED`, with the reviewed routes' results still in the table.
 
-Stop the app you started. Except with `--no-fix`, write `<PASS|FAIL|UNVERIFIED> <git rev-parse HEAD>` to `$run/result`, which `ship` reads to skip a second run on unchanged UI. Report:
+Stop the app you started. Except with `--no-fix`, write `<PASS|FAIL|UNVERIFIED> <git rev-parse HEAD>` to `$run/result`, which `shipit` reads to skip a second run on unchanged UI. Report:
 
 ```
 Visual QA: <PASS | FAIL | UNVERIFIED> — <R> routes × 4 widths × <schemes>, <n> rounds
@@ -89,7 +89,7 @@ Visual QA: <PASS | FAIL | UNVERIFIED> — <R> routes × 4 widths × <schemes>, <
 Screenshots: <run>/r<last>/
 ```
 
-`FAIL` after round 3 → the open P1/P2 rows are listed and the branch is not ready; the caller decides (for `ship`: stop before the push). The report line goes into the PR's `## Test plan` as `- [x] Visual QA: PASS (<R> routes × 4 widths, <n> rounds)` (or `- [ ]` with the open count).
+`FAIL` after round 3 → the open P1/P2 rows are listed and the branch is not ready; the caller decides (for `shipit`: stop before the push). The report line goes into the PR's `## Test plan` as `- [x] Visual QA: PASS (<R> routes × 4 widths, <n> rounds)` (or `- [ ]` with the open count).
 
 ## Common mistakes
 

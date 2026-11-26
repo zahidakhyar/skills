@@ -18,7 +18,7 @@ There are two ways to run the skills from a clone. Use one per machine, never bo
   claude --plugin-dir .
   ```
 
-- **Symlinks (for the maintainer's daily use).** Edits are live in the next session, with no version bump or update step. Skills are called without a namespace (`/ship`). Don't install the plugin on that machine.
+- **Symlinks (for the maintainer's daily use).** Edits are live in the next session, with no version bump or update step. Skills are called without a namespace (`/shipit`). Don't install the plugin on that machine.
 
   ```bash
   for d in skills/*/; do ln -s "$PWD/${d%/}" ~/.claude/skills/"$(basename "$d")"; done
