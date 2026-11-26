@@ -18,7 +18,7 @@ Read back through the full current conversation. Tag each finding:
 **Skip anything that is:**
 - Derivable from reading the code or git history
 - Code structure — module/entity maps, route lists, file layouts, tech-stack dumps. That belongs to each project's CLAUDE.md; saved here it only goes stale
-- Already covered by MEMORY.md or global rules (CLAUDE.md and the files it imports)
+- Already covered by MEMORY.md or global rules (CLAUDE.md and the files it imports), unless the session broke that rule and the user corrected it: keep that one for Step 2b
 - Ephemeral task state
 
 **Asked to remember something on that list** ("remember this module structure", "remember this file layout")? Don't drop it silently. Ask what was non-obvious about it — the gotcha, the decision behind it, why it surprised — and save that instead.
@@ -28,7 +28,7 @@ Read back through the full current conversation. Tag each finding:
 ## Step 2 — Check existing memories
 
 Read `MEMORY.md` (already in context at session start). For each finding:
-- Existing file already covers it → **update that file**
+- Existing file already covers it → **update that file**, unless it already says exactly this (a repeat: leave it, Step 2b reports it)
 - A correction contradicts an existing memory → **fix or delete that memory** and its index line. A wrong memory is worse than a missing one — it gets recalled as fact in future sessions
 - Genuinely new → **create new file**
 
@@ -38,19 +38,19 @@ Never duplicate. When in doubt, update.
 
 ## Step 2b — Route checkable corrections to an enforcer
 
-A memory is a rule the next agent can still skip. For each Correction, ask: could a script have refused the action before the user saw it? It could when the violation shows in a tool call's input (a command, flag, branch, path) or in a file's content, with no judgment needed.
+A memory is a rule the next agent can still skip. For each Correction, and each Preference that states a do or don't rule ("always use pnpm"), ask: could a script have refused the action before the user saw it? It could when the violation shows in a tool call's input (a command, flag, branch, path) or in a file's content, with no judgment needed.
 
-| Correction | Memory | Report line |
+| Finding | Memory | Report line |
 |---|---|---|
-| Checkable, and an existing memory or global rule already says it | Unchanged when it says exactly this; when the correction is stricter or adds to it, update or write the memory per Step 2 | `⚙ Enforce (repeat): [rule] → [check, where]`, listed first |
-| Checkable, new | Write it (Step 3) | `⚙ Enforce: [rule] → [check, where]` |
+| Checkable, and an existing memory or global rule already says it | Unchanged when it says exactly this. Stricter or adds to it: a memory rule → update that memory; a CLAUDE.md or global rule → a memory holding only the added part, naming the rule it tightens | `» Enforce (repeat): [rule] → [check, where]`, listed first |
+| Checkable, new | Write it (Step 3) | `» Enforce: [rule] → [check, where]` |
 | Judgment (tone, length, scope, design) | Write it (Step 3) | none |
 
 A repeat gets its `Enforce (repeat)` line and no `Skipped` line: the prose rule was there and failed, so the violation itself is the finding.
 
 Where the check lives: a tool call (command, flag, git target) → a Claude Code `PreToolUse` hook in `settings.json`, built through the `update-config` skill; code in a repo → that repo's lint config, a test, or a CI step.
 
-Name the check here; don't build it. After an explicit `/learned`, ask once with `AskUserQuestion` whether to build the listed checks, repeats first. An auto-invocation mid-task ends at the report line and the task continues.
+Name the check here; don't build it. After an explicit `/learned`, once the report or card is out, ask once whether to build the listed checks, repeats first: `AskUserQuestion`, or plain text on a host without it. An auto-invocation mid-task ends at the report line and the task continues.
 
 ---
 
@@ -111,18 +111,18 @@ Keep existing entries intact. Index stays under 200 lines — if it grows past t
 Report only what changed, one line per memory and one per enforcer from Step 2b, then stop:
 ```
 Learned:
-⚙ Enforce (repeat): [rule] → [check, where]
-⚙ Enforce: [rule] → [check, where]
+» Enforce (repeat): [rule] → [check, where]
+» Enforce: [rule] → [check, where]
 ✓ New: [slug].md — [one-line]
 ✓ Updated: user-profile.md — added [what]
 ✗ Deleted: [slug].md — [why it was wrong]
 — Skipped: [reason]
 ```
 
-**Card form.** When the user explicitly typed `/learned` and the `show_widget` tool (visualize MCP) is available, render those same lines as one card instead: call `read_me` once, silently (module `mockup`; skip if already called this session), then `show_widget` with the template below — one row per memory, drop the rows you don't need. The card is the whole report; at most one sentence of prose outside the tool call. Auto-invocations mid-task (after a correction, a "remember this") keep the text form: the reply has to continue, and `read_me` costs several thousand tokens.
+**Card form.** When the user explicitly typed `/learned` and the `show_widget` tool (visualize MCP) is available, render those same lines as one card instead: call `read_me` once, silently (module `mockup`; skip if already called this session), then `show_widget` with the template below — one row per memory and one per Enforce line, drop the rows you don't need. The card is the whole report; at most one sentence of prose outside the tool call, plus Step 2b's question. Auto-invocations mid-task (after a correction, a "remember this") keep the text form: the reply has to continue, and `read_me` costs several thousand tokens.
 
 ```html
-<h2 class="sr-only">Memory changes this session: [N] new, [N] updated, [N] deleted, [N] skipped.</h2>
+<h2 class="sr-only">Memory changes this session: [N] checks to enforce, [N] new, [N] updated, [N] deleted, [N] skipped.</h2>
 <div style="background: var(--surface-2); border: 0.5px solid var(--border); border-radius: 12px; padding: 1rem 1.25rem;">
   <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
     <span style="font-size: 15px; font-weight: 500;">[project]</span>
@@ -130,7 +130,7 @@ Learned:
   </div>
   <div style="display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-top: 0.5px solid var(--border);">
     <span style="font-size: 12px; padding: 2px 8px; border-radius: var(--radius); background: var(--bg-warning); color: var(--text-warning); white-space: nowrap;"><i class="ti ti-shield-check" aria-hidden="true"></i> Enforce</span>
-    <span style="font-size: 13px; white-space: nowrap;">[rule] (repeat)</span>
+    <span style="font-size: 13px;">[rule][ (repeat) when it is one]</span>
     <span style="font-size: 13px; color: var(--text-secondary);">[check, where]</span>
   </div>
   <div style="display: flex; gap: 12px; align-items: baseline; padding: 8px 0; border-top: 0.5px solid var(--border);">
@@ -155,7 +155,7 @@ Learned:
 </div>
 ```
 
-Nothing else, except Step 2b's question after an explicit `/learned` whose report has an `Enforce` line.
+Nothing else, except Step 2b's question.
 
 ---
 

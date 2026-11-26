@@ -4,9 +4,9 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
-### Changed
+### Added
 
-- `learned` routes a correction that a script could catch (a command, flag, git target or file content) to an `Enforce` line in its report that names the check: a `PreToolUse` hook, a lint rule or a CI step. A correction repeating a rule already in memory or CLAUDE.md is reported as `Enforce (repeat)` instead of `Skipped`, since the written rule did not prevent it. After an explicit `/learned` it asks whether to build the checks; auto-invocations only report them.
+- `learned` routes a correction or do/don't preference that a script could catch (a command, flag, git target or file content) to an `Enforce` line in its report that names the check: a `PreToolUse` hook, a lint rule or a CI step. A correction repeating a rule already in memory or CLAUDE.md is reported as `Enforce (repeat)` instead of `Skipped`, since the written rule did not prevent it. After an explicit `/learned` it asks whether to build the checks; auto-invocations only report them.
 
 ## [0.10.0] - 2026-11-26
 
