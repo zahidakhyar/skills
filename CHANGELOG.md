@@ -4,9 +4,15 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-27
+
 ### Changed
 
-- `shipit` reviews a High-tier branch from two angles at once: `code-review high`, plus a second reviewer on another model (`sonnet`, or `opus` when the session runs on Sonnet or Haiku) that looks for what the change breaks outside the diff (callers, stored data, other readers, migrations). Both must prove each finding with a command and its output and may write throwaway tests in a scratch worktree. An unproven finding is checked with a test in the session and blocks the push only if that test confirms it. Low and Medium are unchanged.
+- `shipit` reviews a High-tier branch from two angles at once: `code-review high`, plus a second reviewer on another model (`sonnet`, or `opus` when the session runs on Sonnet or Haiku) that looks for what the change breaks outside the diff (callers, stored data, other readers, migrations). Both must prove each finding with a command and its output and may write throwaway tests in a scratch worktree. An unproven finding is checked with a test in the session and blocks the push only if that test confirms it. Low and Medium are unchanged. (#59)
+
+### Fixed
+
+- `autopilot` no longer sends every pending question through `AskUserQuestion`; it puts them in `wrap_up` after a `PushNotification`, like `merged`. Slack draft approvals keep `AskUserQuestion`. (#58)
 
 ## [0.12.0] - 2026-11-26
 
@@ -189,7 +195,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 - Skills: `ship`, `pr-review`, `recheck`, `merged`, `release`, `orchestrate`, `learned`.
 - Bundled default review protocol for `pr-review` and `recheck`, overridable per repo with `REVIEW.md`.
 
-[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/zahidakhyar/skills/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/zahidakhyar/skills/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/zahidakhyar/skills/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/zahidakhyar/skills/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/zahidakhyar/skills/compare/v0.9.1...v0.10.0
