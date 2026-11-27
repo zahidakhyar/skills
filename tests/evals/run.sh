@@ -70,7 +70,13 @@ for c in "${cases[@]}"; do
     total=$((total + 1))
     res="$out_dir/$c/run-$n.txt"
     rc=0
-    "$claude_bin" -p --model "$model" --allowedTools Read "$prompt" >"$res" 2>&1 || rc=$?
+    # The prompt goes on stdin: `--add-dir` takes several values and would swallow it as one.
+    # claude runs from an empty directory, so the dry run reads only what --add-dir grants and never
+    # the skills (or CLAUDE.md) of the checkout running the evals.
+    sandbox="$(mktemp -d)"
+    (cd "$sandbox" && printf '%s\n' "$prompt" | "$claude_bin" -p --model "$model" --allowedTools Read \
+      --add-dir "$skill_dir" "$evals_dir") >"$res" 2>&1 || rc=$?
+    rmdir "$sandbox" 2>/dev/null || true
     if [ "$rc" -ne 0 ]; then
       echo "FAIL $c run $n: claude exited $rc (output in $res)"
       failed=$((failed + 1))

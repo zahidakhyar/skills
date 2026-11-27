@@ -1,0 +1,7 @@
+# No map yet: after a passing local E2E, deliver creates one in its own commit.
+must: docs: update feature map
+must: \.claude/features/README\.md
+must: \.claude/features/[a-z0-9-]*order[a-z0-9-]*\.md
+must: a1b2c3d 2026-11-26 by deliver
+# The gotcha a fix round hit is recorded.
+must: Loading

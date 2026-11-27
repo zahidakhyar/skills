@@ -8,15 +8,16 @@ trap 'rm -rf "$tmp"' EXIT
 fails=0
 fail() { echo "FAIL: $*"; fails=$((fails + 1)); }
 
-# Fake claude: prints $FAKE_OUT, or echoes the prompt (last arg) when FAKE_OUT=echo; exits $FAKE_RC.
+# Fake claude: prints $FAKE_OUT, or echoes the prompt it got on stdin when FAKE_OUT=echo; exits $FAKE_RC.
+# The real `--add-dir` is variadic and would swallow a prompt passed as an argument, so the prompt must come on stdin.
 cat >"$tmp/claude" <<'EOF'
 #!/usr/bin/env bash
-for last; do :; done
-if [ "${FAKE_OUT:-}" = echo ]; then printf '%s\n' "$last"; else cat "$FAKE_OUT"; fi
+pwd >"$FAKE_CWD_LOG"
+if [ "${FAKE_OUT:-}" = echo ]; then cat; else cat >/dev/null; cat "$FAKE_OUT"; fi
 exit "${FAKE_RC:-0}"
 EOF
 chmod +x "$tmp/claude"
-export CLAUDE_BIN="$tmp/claude" EVALS_DIR="$tmp/evals" EVALS_OUT="$tmp/out"
+export CLAUDE_BIN="$tmp/claude" EVALS_DIR="$tmp/evals" EVALS_OUT="$tmp/out" FAKE_CWD_LOG="$tmp/cwd"
 
 mkcase() { # <skill/case> <expect text>
   mkdir -p "$EVALS_DIR/$1"
@@ -73,6 +74,13 @@ export FAKE_OUT="echo"
 run a/ph --skill-dir /skills/here; [ "$rc" = 0 ] || fail "placeholders: not replaced ($out)"
 grep -q '/skills/here/x/SKILL.md' "$EVALS_OUT/a/ph/run-1.txt" || fail "placeholders: skill dir missing"
 grep -q "$EVALS_DIR/a/ph/scenario.md" "$EVALS_OUT/a/ph/run-1.txt" || fail "placeholders: case dir missing"
+
+# isolation: claude runs from an empty directory outside the repo and the case dir,
+# so a dry run can only read what --add-dir grants, never the skills of the checkout running the evals
+repo_root="$(cd "$(dirname "$0")/../.." && pwd -P)"
+cwd="$(cat "$FAKE_CWD_LOG")"
+case "$cwd" in "$repo_root"*|"$EVALS_DIR"*|"$(pwd -P)") fail "isolation: claude ran in $cwd";; esac
+[ -z "$(ls -A "$cwd" 2>/dev/null)" ] || fail "isolation: claude cwd $cwd is not empty"
 
 [ "$fails" = 0 ] || exit 1
 echo "evals runner: all tests passed"
