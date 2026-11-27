@@ -1,8 +1,14 @@
 # Money path: High tier, reviewed from two angles.
-must: High
+must: [Tt]ier[^.]*High|High[^.]*tier
+# Reviewer 1 runs code-review high and then proves or sorts what it returns, instead of passing it on unchanged.
 must: code-review.*high
-# A second reviewer looks beyond the diff, on another model.
+must-not: Return its findings unchanged
+# Reviewer 2 looks outside the diff, on a model other than the session's (Opus here, so sonnet).
 must: outside the diff
-must: sonnet
-# Every finding carries proof; unproven ones are listed apart and do not block.
+must: model.*sonnet
+# Proof is possible: reviewers may write throwaway tests in a scratch worktree, never in the repo.
+must: scratch worktree
+must: Report only findings you proved
+# Unproven findings get a proof attempt in the session before they can be dismissed.
 must: Unproven
+must: test that (would|fails)
