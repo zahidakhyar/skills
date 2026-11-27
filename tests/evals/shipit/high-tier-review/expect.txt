@@ -1,0 +1,8 @@
+# Money path: High tier, reviewed from two angles.
+must: High
+must: code-review.*high
+# A second reviewer looks beyond the diff, on another model.
+must: outside the diff
+must: sonnet
+# Every finding carries proof; unproven ones are listed apart and do not block.
+must: Unproven

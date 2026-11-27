@@ -4,6 +4,10 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Changed
+
+- `shipit` reviews a High-tier branch from two angles at once: `code-review high`, plus a second reviewer on `sonnet` that looks for what the change breaks outside the diff (callers, stored data, other readers, migrations). Both must prove each finding with a command and its output; unproven findings are confirmed in the session or listed under `## Out of scope`, and never block the push. Low and Medium are unchanged.
+
 ## [0.12.0] - 2026-11-26
 
 ### Added

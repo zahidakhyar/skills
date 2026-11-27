@@ -1,0 +1,4 @@
+# Cache change: Medium tier, one reviewer as before.
+must: Medium
+must: code-review.*medium
+must-not: outside the diff
