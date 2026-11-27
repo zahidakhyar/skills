@@ -1,7 +1,6 @@
 # The app did not start: the map still ships, every new line is never, and the PR says why.
-must: UNVERIFIED
-must: STRIPE_SECRET_KEY
+must: UNVERIFIED: no feature driven.*STRIPE_SECRET_KEY
 must: docs: seed feature map
 must: : never
-# Nothing was driven, so nothing is dated today; the existing entry is not re-dated.
-must-not: : [0-9a-f]{7} 2026-11-26
+# The existing, dated entry is left alone.
+must-not: filter-(status|reload): never

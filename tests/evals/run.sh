@@ -3,11 +3,16 @@
 # Usage: run.sh [skill[/case]] [--runs N] [--model M] [--skill-dir PATH]
 # Each case dir holds prompt.md ({{SKILL_DIR}}, {{CASE_DIR}} placeholders), scenario.md
 # and expect.txt (`must: <ERE>` / `must-not: <ERE>`, `#` comments).
-# Exit 0 when every run passes, 1 otherwise. Calls the model: run it by hand, not in CI.
+# Exit 0 when every run passes, 1 when one fails, 2 on bad usage.
+# Calls the model: run it by hand, not in CI.
 set -euo pipefail
+# bash >= 5.2 would expand & in ${var//pat/rep}; paths must stay literal. Absent on bash 3.2.
+shopt -u patsub_replacement 2>/dev/null || true
+
+usage() { echo "run.sh: $*" >&2; echo "usage: run.sh [skill[/case]] [--runs N] [--model M] [--skill-dir PATH]" >&2; exit 2; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
-evals_dir="${EVALS_DIR:-$here}"
+evals_dir="$(cd "${EVALS_DIR:-$here}" && pwd)"
 out_dir="${EVALS_OUT:-$here/.out}"
 claude_bin="${CLAUDE_BIN:-claude}"
 skill_dir="$(cd "$here/../.." && pwd)/skills"
@@ -17,38 +22,55 @@ filter=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --runs) runs="$2"; shift 2 ;;
-    --model) model="$2"; shift 2 ;;
-    --skill-dir) skill_dir="$2"; shift 2 ;;
-    -*) echo "run.sh: unknown flag $1" >&2; exit 2 ;;
-    *) filter="$1"; shift ;;
+    --runs|--model|--skill-dir)
+      [ $# -ge 2 ] || usage "$1 needs a value"
+      case "$1" in
+        --runs) runs="$2" ;;
+        --model) model="$2" ;;
+        --skill-dir) skill_dir="$(cd "$2" 2>/dev/null && pwd)" || usage "no such directory: $2" ;;
+      esac
+      shift 2 ;;
+    -*) usage "unknown flag $1" ;;
+    *) [ -z "$filter" ] || usage "only one skill or skill/case filter"; filter="$1"; shift ;;
   esac
 done
-
-cases=()
-while IFS= read -r d; do cases+=("$d"); done < <(
-  find "$evals_dir" -mindepth 2 -maxdepth 2 -type d ! -path '*/.out/*' | sed "s|^$evals_dir/||" | sort
-)
+[[ "$runs" =~ ^[1-9][0-9]*$ ]] || usage "--runs must be a positive integer"
 
 # check <output file> <expect file>: prints each failed assertion, returns 1 if any failed
 check() {
-  local out="$1" expect="$2" line kind pat failed=0
+  local out="$1" expect="$2" line kind pat rc failed=0
   while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    line="${line%"${line##*[![:space:]]}"}"
     case "$line" in ''|'#'*) continue ;; esac
     kind="${line%%: *}"
     pat="${line#*: }"
+    if [ "$kind" = "$line" ] || [ -z "$pat" ]; then
+      echo "  bad expect line: $line"; failed=1; continue
+    fi
+    rc=0; grep -Eq -- "$pat" "$out" 2>/dev/null || rc=$?
+    if [ "$rc" -gt 1 ]; then echo "  invalid regex: $pat"; failed=1; continue; fi
     case "$kind" in
-      must) grep -Eq -- "$pat" "$out" || { echo "  missing  must: $pat"; failed=1; } ;;
-      must-not) ! grep -Eq -- "$pat" "$out" || { echo "  present  must-not: $pat"; failed=1; } ;;
+      must) [ "$rc" = 0 ] || { echo "  missing  must: $pat"; failed=1; } ;;
+      must-not) [ "$rc" = 1 ] || { echo "  present  must-not: $pat"; failed=1; } ;;
       *) echo "  bad expect line: $line"; failed=1 ;;
     esac
   done <"$expect"
   return "$failed"
 }
 
+sandbox=""
+cleanup() { [ -z "$sandbox" ] || rm -rf "$sandbox"; }
+trap cleanup EXIT
+
+cases=()
+while IFS= read -r d; do cases+=("$d"); done < <(
+  find "$evals_dir" -mindepth 2 -maxdepth 2 -type d ! -path '*/.out*' | sed "s|^$evals_dir/||" | sort
+)
+
 total=0
 failed=0
-for c in "${cases[@]}"; do
+for c in ${cases[@]+"${cases[@]}"}; do
   case "$filter" in
     '') ;;
     */*) [ "$c" = "$filter" ] || continue ;;
@@ -62,21 +84,25 @@ for c in "${cases[@]}"; do
       continue 2
     fi
   done
-  prompt="$(<"$dir/prompt.md")"
-  prompt="${prompt//\{\{SKILL_DIR\}\}/$skill_dir}"
-  prompt="${prompt//\{\{CASE_DIR\}\}/$dir}"
   mkdir -p "$out_dir/$c"
   for n in $(seq 1 "$runs"); do
     total=$((total + 1))
     res="$out_dir/$c/run-$n.txt"
-    rc=0
-    # The prompt goes on stdin: `--add-dir` takes several values and would swallow it as one.
-    # claude runs from an empty directory, so the dry run reads only what --add-dir grants and never
-    # the skills (or CLAUDE.md) of the checkout running the evals.
+    # Each run gets an empty working directory and a copy of the case without its answer key,
+    # so the dry run sees only the skills under test and the scenario.
     sandbox="$(mktemp -d)"
-    (cd "$sandbox" && printf '%s\n' "$prompt" | "$claude_bin" -p --model "$model" --allowedTools Read \
-      --add-dir "$skill_dir" "$evals_dir") >"$res" 2>&1 || rc=$?
-    rmdir "$sandbox" 2>/dev/null || true
+    mkdir "$sandbox/cwd" "$sandbox/case"
+    find "$dir" -maxdepth 1 -type f ! -name expect.txt ! -name prompt.md -exec cp {} "$sandbox/case/" \;
+    prompt="$(<"$dir/prompt.md")"
+    prompt="${prompt//\{\{SKILL_DIR\}\}/$skill_dir}"
+    prompt="${prompt//\{\{CASE_DIR\}\}/$sandbox/case}"
+    rc=0
+    # The prompt goes on stdin: --add-dir takes several values and would swallow it as one.
+    # --setting-sources "" keeps the user's CLAUDE.md, hooks and plugins out; --tools limits tools to Read.
+    (cd "$sandbox/cwd" && printf '%s\n' "$prompt" | "$claude_bin" -p --model "$model" \
+      --tools Read --setting-sources "" --strict-mcp-config --disable-slash-commands \
+      --add-dir "$skill_dir" "$sandbox/case") >"$res" 2>&1 || rc=$?
+    rm -rf "$sandbox"; sandbox=""
     if [ "$rc" -ne 0 ]; then
       echo "FAIL $c run $n: claude exited $rc (output in $res)"
       failed=$((failed + 1))
@@ -90,5 +116,9 @@ for c in "${cases[@]}"; do
   done
 done
 
+if [ "$total" = 0 ]; then
+  echo "no eval case matches '${filter}'"
+  exit 1
+fi
 echo "$((total - failed))/$total passed"
 [ "$failed" = 0 ]

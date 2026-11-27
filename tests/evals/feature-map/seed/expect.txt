@@ -1,6 +1,7 @@
 # The driven sub-feature is dated; features that were not driven are still mapped, as never.
 must: filter-status: c3d4e5f 2026-11-26 by feature-map
-must: : never
+must: filter-reload: never
 must: ^- [a-z-]*(detail|refund)[a-z-]*: never
 must: docs: seed feature map
-must-not: ^- (open|detail|refund|edit|profile|export|login|sign|settings)[a-z-]*: [0-9a-f]{7}
+# Nothing the run log did not drive gets a commit.
+must-not: ^- [a-z-]*(reload|detail|refund|export|report|setting|profile|save)[a-z-]*: [0-9a-f]{7}
