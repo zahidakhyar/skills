@@ -109,7 +109,7 @@ What the gate does before anything is pushed:
 
 1. Picks a risk tier (Low / Medium / High) from the changed paths. The tier goes into the PR body as a `## Risk` line, and reviewers use it to set review depth.
 2. Runs typecheck, lint and the related tests, with commands taken from the repo's `package.json` scripts or CI workflow.
-3. Runs `code-review` at the tier's effort (in a subagent for Medium and High, so the session that wrote the code does not review itself), and `security-review` when the diff touches auth, endpoint input, queries, uploads, user HTML or secrets.
+3. Runs `code-review` at the tier's effort (in a subagent for Medium and High, so the session that wrote the code does not review itself). High adds a second reviewer on another model that looks for what the change breaks outside the diff, and both must back each finding with a command and its output (they may write throwaway tests in a scratch worktree). A finding without proof is checked with a test before the push and blocks only if that test confirms it. It also runs `security-review` when the diff touches auth, endpoint input, queries, uploads, user HTML or secrets.
 4. Runs [`visual-qa`](#visual-qa) when the branch changed web UI and that UI has not already passed.
 
 ```mermaid
