@@ -113,7 +113,7 @@ After a pass that showed a table, one short block and nothing else:
 | Started | Waiting on you | PR open | Merged, need dev URL | Slack drafts |
 |---|---|---|---|---|
 
-Each cell lists linked items. `wrap_up` carries a one-sentence recap only, except the "Start these?" button above. Every other question to the user goes through `AskUserQuestion`, recommended option first, because the user reads on their phone.
+Each cell lists linked items. `wrap_up` carries a one-sentence recap only, except the "Start these?" button above. Slack drafts are approved through `AskUserQuestion`, one question per draft ([references/slack.md](references/slack.md)).
 
 ## Never
 
