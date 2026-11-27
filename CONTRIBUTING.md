@@ -35,6 +35,9 @@ skills/
     SKILL.md           frontmatter + instructions Claude follows
     references/        extra docs the skill reads on demand
     scripts/           shell scripts the skill runs
+tests/
+  <skill>/             shell tests for a skill's scripts (run in CI)
+  evals/               dry-run evals for skill behaviour (run by hand)
 ```
 
 Every folder in `skills/` is picked up automatically; no manifest change is needed for a new skill.
@@ -70,6 +73,16 @@ shellcheck -S warning skills/*/scripts/*.sh
 ```bash
 grep -rnF '.claude/skills/' skills && echo "hardcoded path found" || echo ok
 ```
+
+### Skill evals
+
+`tests/evals/<skill>/<case>/` holds dry-run scenarios for skills: `prompt.md`, `scenario.md`, and `expect.txt` with `must: <regex>` / `must-not: <regex>` lines. The runner sends each prompt to `claude -p` from an empty directory, with only the Read tool, without your settings, CLAUDE.md, hooks, MCP servers or skills, and with a copy of the case that leaves out `expect.txt`; then it greps the answer. It calls the model, so it is not part of CI; run the evals of every skill you changed before opening a pull request:
+
+```bash
+bash tests/evals/run.sh <skill>
+```
+
+`--runs N` repeats each case, `--model` picks the model (default `sonnet`), and `--skill-dir <path>` points at another copy of `skills/`, such as a worktree of the base branch, to watch a new case fail before your change. Outputs land in `tests/evals/.out/`. A behaviour change to a skill comes with a case that fails without it.
 
 Then try the changed skill for real in a session started with `claude --plugin-dir .`, and describe what you ran in the pull request.
 

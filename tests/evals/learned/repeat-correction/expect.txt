@@ -1,0 +1,8 @@
+# The jest correction repeats an existing memory: reported as an enforcer, not skipped.
+must: Enforce \(repeat\).*(maxWorkers|jest)
+must-not: Skipped.*(maxWorkers|jest)
+# The force-push correction is checkable: it gets an Enforce line and a memory.
+must: Enforce.*(force[- ]push|--force)
+must: ^name: .*force
+# "Too long" is a judgment call: memory only, no Enforce line.
+must-not: Enforce.*(panjang|sentence|kalimat|(^|[^a-z])long([^a-z]|$))

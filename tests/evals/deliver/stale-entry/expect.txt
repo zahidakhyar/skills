@@ -1,0 +1,8 @@
+# The stale Drive step is corrected in place: the Filter step names the new label and not the old one.
+must: \*\*Filter\.\*\*.*name: 'Filter'
+must-not: \*\*Filter\.\*\*.*'Apply filter'
+must: docs: update feature map
+# Only the driven sub-feature is re-dated; the reload line keeps its old verification.
+must: filter-status: b2c3d4e 2026-11-26 by deliver
+must: filter-reload: 9f8e7d6 2026-11-10 by deliver
+must-not: filter-reload: b2c3d4e
